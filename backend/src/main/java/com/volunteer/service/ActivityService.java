@@ -1,0 +1,48 @@
+package com.volunteer.service;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.volunteer.dto.ActivityDTO;
+import com.volunteer.dto.ActivityPageQuery;
+import com.volunteer.dto.ActivityRequest;
+import com.volunteer.entity.Activity;
+
+/**
+ * 活动服务接口
+ */
+public interface ActivityService {
+
+    /**
+     * 创建活动
+     */
+    Activity createActivity(ActivityRequest request, Long organizerId);
+
+    /**
+     * 更新活动
+     */
+    void updateActivity(ActivityRequest request, Long operatorId);
+
+    /**
+     * 获取活动详情
+     */
+    ActivityDTO getActivityDetail(Long id);
+
+    /**
+     * 分页查询活动
+     */
+    Page<ActivityDTO> pageActivities(ActivityPageQuery query);
+
+    /**
+     * 删除活动
+     */
+    void deleteActivity(Long id, Long operatorId);
+
+    /**
+     * 审核活动
+     */
+    void auditActivity(Long id, Integer auditStatus, String auditRemark, Long auditorId);
+
+    /**
+     * 增加浏览次数
+     */
+    void incrementViewCount(Long id);
+}
