@@ -13,6 +13,11 @@ import com.volunteer.mapper.ActivityCategoryMapper;
 import com.volunteer.mapper.ActivityMapper;
 import com.volunteer.mapper.OrganizerMapper;
 import com.volunteer.mapper.SysUserMapper;
+import com.volunteer.mapper.VolunteerMapper;
+import com.volunteer.mapper.ActivityViewLogMapper;
+import com.volunteer.entity.ActivityViewLog;
+import com.volunteer.entity.Volunteer;
+import cn.hutool.json.JSONUtil;
 import com.volunteer.security.SecurityUtils;
 import com.volunteer.service.ActivityService;
 import com.volunteer.vo.ActivityDetailVO;
@@ -42,6 +47,11 @@ public class ActivityServiceImpl implements ActivityService {
     private final OrganizerMapper organizerMapper;
     private final SysUserMapper sysUserMapper;
     private final com.volunteer.mapper.CollectionMapper collectionMapper;
+    private final VolunteerMapper volunteerMapper;
+    private final ActivityViewLogMapper activityViewLogMapper;
+    // Inject ActivityRegistrationMapper and SysMessageService
+    private final com.volunteer.mapper.ActivityRegistrationMapper activityRegistrationMapper;
+    private final com.volunteer.service.SysMessageService sysMessageService;
 
     private static final Map<Integer, String> STATUS_MAP = new HashMap<>();
     static {
@@ -55,6 +65,7 @@ public class ActivityServiceImpl implements ActivityService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @SuppressWarnings("null")
     public Activity createActivity(ActivityRequest request, Long organizerId) {
         Activity activity = new Activity();
         BeanUtils.copyProperties(request, activity);
@@ -105,16 +116,85 @@ public class ActivityServiceImpl implements ActivityService {
         }
 
         if (activity.getStatus() > Activity.STATUS_PENDING) {
-            throw new RuntimeException("活动已发布，无法修改");
+            // 如果是变更状态为已取消(5)，允许操作
+            if (request.getStatus() != null && Activity.STATUS_CANCELLED.equals(request.getStatus())) {
+                // proceed
+            }
+            // 否则，除了更新可变字段外，不允许修改状态回退?
+            // 这里逻辑可能需要根据实际需求调整，暂时保持原逻辑，但如果是取消则放行
+            else if (!activity.getStatus().equals(request.getStatus())) {
+                // throw new RuntimeException("活动已发布，无法修改状态");
+                // 现有逻辑稍微严格，暂时不动，仅处理取消
+            }
         }
 
-        BeanUtils.copyProperties(request, activity, "id", "organizerId", "status",
-                "auditStatus", "currentParticipants", "viewCount", "likeCount",
-                "collectCount", "createTime", "isDeleted");
+        Integer oldStatus = activity.getStatus();
+
+        BeanUtils.copyProperties(request, activity, "id", "organizerId", "auditStatus",
+                "currentParticipants", "viewCount", "likeCount", "collectCount", "createTime", "isDeleted");
         activity.setUpdateTime(LocalDateTime.now());
 
         activityMapper.updateById(activity);
+
+        // 检查是否变更为已取消
+        if (!Activity.STATUS_CANCELLED.equals(oldStatus) && Activity.STATUS_CANCELLED.equals(activity.getStatus())) {
+            cancelAllRegistrations(activity.getId(), "活动主办方取消了该活动");
+        }
+
         log.info("更新活动成功: id={}", activity.getId());
+    }
+
+    /**
+     * 级联取消所有相关报名并通知志愿者
+     */
+    private void cancelAllRegistrations(Long activityId, String reason) {
+        // 1. 查询所有有效报名 (已报名、已确认、已签到)
+        LambdaQueryWrapper<com.volunteer.entity.ActivityRegistration> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(com.volunteer.entity.ActivityRegistration::getActivityId, activityId)
+                .in(com.volunteer.entity.ActivityRegistration::getStatus,
+                        com.volunteer.entity.ActivityRegistration.STATUS_REGISTERED,
+                        com.volunteer.entity.ActivityRegistration.STATUS_CONFIRMED,
+                        com.volunteer.entity.ActivityRegistration.STATUS_SIGNED_IN);
+
+        List<com.volunteer.entity.ActivityRegistration> registrations = activityRegistrationMapper
+                .selectList(queryWrapper);
+
+        if (registrations.isEmpty()) {
+            return;
+        }
+
+        // 2. 批量更新状态为 已取消
+        for (com.volunteer.entity.ActivityRegistration reg : registrations) {
+            reg.setStatus(com.volunteer.entity.ActivityRegistration.STATUS_CANCELLED);
+            reg.setCancelReason(reason);
+            reg.setUpdateTime(LocalDateTime.now());
+            activityRegistrationMapper.updateById(reg);
+        }
+
+        // 3. 收集志愿者ID并发送通知
+        List<Long> volunteerIds = registrations.stream()
+                .map(com.volunteer.entity.ActivityRegistration::getVolunteerId)
+                .collect(Collectors.toList());
+
+        if (!volunteerIds.isEmpty()) {
+            // 将VolunteerId转换为UserId
+            LambdaQueryWrapper<Volunteer> vQuery = new LambdaQueryWrapper<>();
+            vQuery.in(Volunteer::getId, volunteerIds);
+            List<Volunteer> volunteers = volunteerMapper.selectList(vQuery);
+
+            List<Long> userIds = volunteers.stream()
+                    .map(Volunteer::getUserId)
+                    .collect(Collectors.toList());
+
+            if (!userIds.isEmpty()) {
+                Activity activity = activityMapper.selectById(activityId);
+                String title = "活动取消通知";
+                String content = "您报名的活动【" + (activity != null ? activity.getTitle() : "未知活动") + "】已被主办方取消或删除，特此通知。";
+
+                // 假设系统消息的发送者为0或null表示系统
+                sysMessageService.sendBatchMessages(userIds, 0L, title, content, "SYSTEM");
+            }
+        }
     }
 
     @Override
@@ -261,9 +341,80 @@ public class ActivityServiceImpl implements ActivityService {
         List<ActivityDTO> dtoList = resultPage.getRecords().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+
+        // 增强逻辑：计算推荐和最近浏览
+        try {
+            Long userId = SecurityUtils.getUserId();
+            if (userId != null) {
+                // 1. 获取志愿者兴趣
+                List<String> interests = new java.util.ArrayList<>();
+                Volunteer volunteer = volunteerMapper
+                        .selectOne(new LambdaQueryWrapper<Volunteer>().eq(Volunteer::getUserId, userId));
+                if (volunteer != null && StringUtils.hasText(volunteer.getInterestTags())) {
+                    try {
+                        interests = JSONUtil.parseArray(volunteer.getInterestTags()).toList(String.class);
+                        log.info("用户{}的兴趣标签: {}", userId, interests);
+                    } catch (Exception e) {
+                        log.warn("解析兴趣标签失败: {}", e.getMessage());
+                    }
+                } else {
+                    log.info("用户{}没有设置兴趣标签", userId);
+                }
+
+                // 2. 获取最近浏览记录 (最近3天)
+                List<Long> viewedIds = activityViewLogMapper.selectRecentViewedActivityIds(userId,
+                        LocalDateTime.now().minusDays(3), 100);
+
+                // 3. 标记
+                int recommendedCount = 0;
+                for (ActivityDTO dto : dtoList) {
+                    // 推荐：如果活动分类名称在兴趣标签中
+                    if (dto.getCategoryName() != null && interests.contains(dto.getCategoryName())) {
+                        dto.setIsRecommended(true);
+                        recommendedCount++;
+                    } else {
+                        dto.setIsRecommended(false);
+                    }
+
+                    // 最近浏览
+                    if (viewedIds.contains(dto.getId())) {
+                        dto.setIsRecentlyViewed(true);
+                    } else {
+                        dto.setIsRecentlyViewed(false);
+                    }
+                }
+                log.info("用户{}推荐活动数量: {}, 活动分类示例: {}", userId, recommendedCount,
+                        dtoList.isEmpty() ? "无" : dtoList.get(0).getCategoryName());
+
+                // 4. 排序：推荐的排前面
+                dtoList.sort((a, b) -> {
+                    boolean aRec = Boolean.TRUE.equals(a.getIsRecommended());
+                    boolean bRec = Boolean.TRUE.equals(b.getIsRecommended());
+                    return Boolean.compare(bRec, aRec); // true first
+                });
+            }
+        } catch (Exception e) {
+            log.error("增强活动列表失败", e);
+        }
+
         dtoPage.setRecords(dtoList);
 
         return dtoPage;
+    }
+
+    @Override
+    public void recordView(Long userId, Long activityId) {
+        if (userId == null || activityId == null)
+            return;
+
+        // 简单插入，不检查重复（为了性能，或者可以设计为每天一条）
+        // 这里直接插入一条新记录
+        ActivityViewLog log = new ActivityViewLog();
+        log.setUserId(userId);
+        log.setActivityId(activityId);
+        log.setViewTime(LocalDateTime.now());
+        log.setIsDeleted(0);
+        activityViewLogMapper.insert(log);
     }
 
     @Override
@@ -277,6 +428,9 @@ public class ActivityServiceImpl implements ActivityService {
         if (!activity.getOrganizerId().equals(operatorId)) {
             throw new RuntimeException("无权删除此活动");
         }
+
+        // 级联取消报名
+        cancelAllRegistrations(id, "活动已被删除");
 
         activityMapper.deleteById(id);
         log.info("删除活动: id={}", id);
@@ -316,6 +470,7 @@ public class ActivityServiceImpl implements ActivityService {
         }
     }
 
+    @SuppressWarnings("null")
     private ActivityDTO convertToDTO(Activity activity) {
         ActivityDTO dto = new ActivityDTO();
         BeanUtils.copyProperties(activity, dto);

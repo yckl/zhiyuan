@@ -89,6 +89,16 @@ public class ActivityController {
             var activity = ((com.volunteer.service.impl.ActivityServiceImpl) activityService).getActivityDetailVO(id);
             // 增加浏览次数
             activityService.incrementViewCount(id);
+
+            // 记录浏览足迹
+            try {
+                Long userId = SecurityUtils.getUserId();
+                if (userId != null) {
+                    activityService.recordView(userId, id);
+                }
+            } catch (Exception e) {
+                log.warn("记录浏览足迹失败: {}", e.getMessage());
+            }
             return Result.success(activity);
         } catch (Exception e) {
             log.error("获取活动详情失败: {}", e.getMessage());

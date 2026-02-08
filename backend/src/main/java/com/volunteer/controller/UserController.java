@@ -115,7 +115,31 @@ public class UserController {
             @RequestParam Integer status) {
         log.info("修改用户状态: id={}, status={}", id, status);
 
-        // ... existing code ...
+        // 1. 检查用户是否存在
+        SysUser user = sysUserMapper.selectById(id);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        // 2. 不能禁用自己
+        Long currentUserId = SecurityUtils.getUserId();
+        if (id.equals(currentUserId)) {
+            return Result.error("不能禁用自己的账号");
+        }
+
+        // 3. 不能禁用管理员
+        if (SysUser.ROLE_ADMIN.equals(user.getRole())) {
+            return Result.error("不能禁用管理员账号");
+        }
+
+        // 4. 更新状态
+        LambdaUpdateWrapper<SysUser> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(SysUser::getId, id)
+                .set(SysUser::getStatus, status)
+                .set(SysUser::getUpdateTime, LocalDateTime.now());
+        sysUserMapper.update(null, updateWrapper);
+
+        log.info("用户 {} 状态已更新为 {}", user.getUsername(), status);
         return Result.success("用户已" + (status == 1 ? "启用" : "禁用"), null);
     }
 
@@ -195,13 +219,14 @@ public class UserController {
     /**
      * 将 SysUser 转换为 UserVO
      */
+    @SuppressWarnings("null")
     private UserVO convertToVO(SysUser user, Map<Long, String> realNameMap) {
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
 
         // 设置真实姓名（从志愿者表获取）
         if (SysUser.ROLE_VOLUNTEER.equals(user.getRole())) {
-            vo.setRealName(realNameMap.getOrDefault(user.getId(), null));
+            vo.setRealName(realNameMap.get(user.getId()));
         } else if (SysUser.ROLE_ORGANIZER.equals(user.getRole())) {
             // 组织者使用用户名作为名称
             vo.setRealName(user.getUsername());

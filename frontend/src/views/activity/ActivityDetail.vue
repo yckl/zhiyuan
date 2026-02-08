@@ -232,12 +232,22 @@ const canRegister = computed(() => {
   if (!isLoggedIn.value) return false
   if (hasRegistered.value) return false
   if (activity.value.status !== 2) return false // 非报名中状态
+  // 检查报名截止时间
+  const deadline = activity.value.registerEnd || activity.value.deadline
+  if (deadline && new Date(deadline) < new Date()) {
+    return false
+  }
   // 检查人数限制
   if (activity.value.maxParticipants > 0 && 
       activity.value.currentParticipants >= activity.value.maxParticipants) {
     return false
   }
   return true
+})
+
+const isDeadlinePassed = computed(() => {
+  const deadline = activity.value.registerEnd || activity.value.deadline
+  return deadline && new Date(deadline) < new Date()
 })
 
 const registerBtnType = computed(() => {
@@ -252,6 +262,7 @@ const registerBtnText = computed(() => {
   if (activity.value.status === 3) return '活动进行中'
   if (activity.value.status === 4) return '活动已结束'
   if (activity.value.status === 5) return '活动已取消'
+  if (isDeadlinePassed.value) return '报名已截止'
   if (activity.value.maxParticipants > 0 && 
       activity.value.currentParticipants >= activity.value.maxParticipants) {
     return '名额已满'

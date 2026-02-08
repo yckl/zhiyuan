@@ -74,52 +74,7 @@
     <div class="activity-grid" v-loading="loading">
       <el-row :gutter="20">
         <el-col v-for="item in activities" :key="item.id" :xs="24" :sm="12" :lg="8" :xl="6">
-          <el-card class="activity-card" shadow="hover" @click="goToDetail(item.id)">
-            <div class="card-cover">
-              <el-image :src="item.coverImage || defaultCover" fit="cover" class="cover-image">
-                <template #error>
-                  <div class="image-placeholder">
-                    <el-icon :size="40"><Picture /></el-icon>
-                  </div>
-                </template>
-              </el-image>
-              <el-tag class="status-tag" :type="getStatusType(item.status)">{{ item.statusName }}</el-tag>
-            </div>
-            
-            <div class="card-body">
-              <div class="card-category">
-                <el-tag size="small" effect="plain">{{ item.categoryName || '未分类' }}</el-tag>
-              </div>
-              <h3 class="card-title">{{ item.title }}</h3>
-              
-              <div class="card-info">
-                <p><el-icon><Clock /></el-icon> {{ formatDate(item.startTime) }}</p>
-                <p><el-icon><Location /></el-icon> {{ item.location || '待定' }}</p>
-              </div>
-
-              <!-- 报名进度 -->
-              <div class="card-progress">
-                <div class="progress-text">
-                  <span>报名进度</span>
-                  <span>{{ item.currentParticipants }} / {{ item.maxParticipants || '不限' }}</span>
-                </div>
-                <el-progress
-                  :percentage="getProgress(item.currentParticipants, item.maxParticipants)"
-                  :stroke-width="6"
-                  :show-text="false"
-                  :color="getProgressColor(item.currentParticipants, item.maxParticipants)"
-                />
-              </div>
-            </div>
-
-            <div class="card-footer">
-              <div class="rewards">
-                <span><el-icon><Timer /></el-icon> {{ item.serviceHours || 0 }}h</span>
-                <span><el-icon><Medal /></el-icon> {{ item.pointsReward || 0 }}分</span>
-              </div>
-              <el-button type="primary" size="small" @click.stop="goToDetail(item.id)">查看详情</el-button>
-            </div>
-          </el-card>
+          <ActivityCard :activity="item" />
         </el-col>
       </el-row>
 
@@ -144,14 +99,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { Search, Refresh } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
-import dayjs from 'dayjs'
 
-const router = useRouter()
 
-const defaultCover = '/default-cover.jpg'
+import ActivityCard from '@/components/ActivityCard.vue'
+
+
+
+
 const loading = ref(false)
 const activities = ref<any[]>([])
 const categories = ref<any[]>([])
@@ -170,33 +126,7 @@ const queryParams = reactive({
   status: null as number | null
 })
 
-const formatDate = (date: string) => {
-  return date ? dayjs(date).format('YYYY-MM-DD HH:mm') : ''
-}
 
-const getStatusType = (status: number) => {
-  const types: Record<number, string> = {
-    0: 'info',
-    1: 'warning',
-    2: 'success',
-    3: 'primary',
-    4: 'info',
-    5: 'danger'
-  }
-  return types[status] || 'info'
-}
-
-const getProgress = (current: number, max: number) => {
-  if (!max || max <= 0) return 0
-  return Math.min(Math.round((current / max) * 100), 100)
-}
-
-const getProgressColor = (current: number, max: number) => {
-  const progress = getProgress(current, max)
-  if (progress >= 90) return '#f56c6c'
-  if (progress >= 70) return '#e6a23c'
-  return '#409eff'
-}
 
 // 获取分类列表
 const fetchCategories = async () => {
@@ -267,9 +197,7 @@ const handleReset = () => {
   fetchActivities()
 }
 
-const goToDetail = (id: number) => {
-  router.push(`/activity/${id}`)
-}
+
 
 onMounted(() => {
   fetchCategories()
@@ -334,8 +262,8 @@ onMounted(() => {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #f5f7fa;
-        color: #c0c4cc;
+        background: var(--el-fill-color-light);
+        color: var(--el-text-color-placeholder);
       }
 
       .status-tag {
@@ -359,7 +287,7 @@ onMounted(() => {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: #333;
+        color: var(--el-text-color-primary);
       }
 
       .card-info {
@@ -370,11 +298,11 @@ onMounted(() => {
           align-items: center;
           gap: 6px;
           font-size: 13px;
-          color: #666;
+          color: var(--el-text-color-secondary);
           margin: 6px 0;
 
           .el-icon {
-            color: #409eff;
+            color: var(--el-color-primary);
           }
         }
       }
@@ -384,7 +312,7 @@ onMounted(() => {
           display: flex;
           justify-content: space-between;
           font-size: 12px;
-          color: #999;
+          color: var(--el-text-color-secondary);
           margin-bottom: 6px;
         }
       }
@@ -395,14 +323,14 @@ onMounted(() => {
       justify-content: space-between;
       align-items: center;
       padding: 12px 16px;
-      border-top: 1px solid #f0f0f0;
-      background: #fafafa;
+      border-top: 1px solid var(--el-border-color-lighter);
+      background: var(--el-fill-color-lighter);
 
       .rewards {
         display: flex;
         gap: 16px;
         font-size: 13px;
-        color: #666;
+        color: var(--el-text-color-secondary);
 
         span {
           display: flex;

@@ -33,6 +33,7 @@ public class CourseExamServiceImpl implements CourseExamService {
     private final CourseExamRecordMapper examRecordMapper;
     private final VolunteerMapper volunteerMapper;
     private final PointsRecordMapper pointsRecordMapper;
+    private final CourseProgressMapper courseProgressMapper;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -61,12 +62,25 @@ public class CourseExamServiceImpl implements CourseExamService {
     /**
      * 生成试卷
      * 随机抽取题目，返回不含正确答案的试卷
+     * 前置条件：必须完成课程学习（进度>=80%）
      */
     @Override
     public ExamPaperVO generateExamPaper(Long courseId, int questionCount) {
         Course course = courseMapper.selectById(courseId);
         if (course == null) {
             throw new RuntimeException("课程不存在");
+        }
+
+        // 检查课程学习进度（防止刷课作弊）
+        Volunteer volunteer = getCurrentVolunteer();
+        if (volunteer != null) {
+            CourseProgress progress = courseProgressMapper.findByVolunteerAndCourse(volunteer.getId(), courseId);
+            if (progress == null || progress.getProgress() < CourseProgress.MIN_PROGRESS_FOR_EXAM) {
+                int currentProgress = progress != null ? progress.getProgress() : 0;
+                throw new RuntimeException(String.format(
+                        "请先完成课程学习（当前进度: %d%%，需要达到 %d%%）",
+                        currentProgress, CourseProgress.MIN_PROGRESS_FOR_EXAM));
+            }
         }
 
         if (questionCount <= 0) {

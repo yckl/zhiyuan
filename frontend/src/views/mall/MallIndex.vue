@@ -344,7 +344,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .mall-index {
   padding: 20px;
-  background: #f5f7fa;
+  background: var(--el-bg-color-page);
   min-height: 100vh;
 }
 
@@ -387,7 +387,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   padding: 16px 20px;
   border-radius: 12px;
   flex-wrap: wrap;
@@ -401,7 +401,7 @@ onMounted(() => {
   }
 
   .goods-count {
-    color: #999;
+    color: var(--el-text-color-secondary);
     font-size: 14px;
   }
 }
@@ -423,7 +423,7 @@ onMounted(() => {
 }
 
 .goods-card {
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -450,11 +450,11 @@ onMounted(() => {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f5f5f5;
+      background: var(--el-fill-color-light);
 
       .loading-icon {
         font-size: 32px;
-        color: #ccc;
+        color: var(--el-text-color-placeholder);
         animation: rotate 1s linear infinite;
       }
     }
@@ -491,7 +491,7 @@ onMounted(() => {
       font-size: 16px;
       font-weight: 600;
       margin: 0 0 8px;
-      color: #333;
+      color: var(--el-text-color-primary);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -499,7 +499,7 @@ onMounted(() => {
 
     .goods-desc {
       font-size: 13px;
-      color: #999;
+      color: var(--el-text-color-secondary);
       margin: 0 0 16px;
       height: 36px;
       overflow: hidden;
@@ -518,18 +518,18 @@ onMounted(() => {
           display: flex;
           align-items: center;
           gap: 4px;
-          color: #e6a23c;
+          color: var(--el-color-warning);
           font-size: 20px;
           font-weight: bold;
         }
 
         .stock {
           font-size: 12px;
-          color: #999;
+          color: var(--el-text-color-secondary);
           margin-top: 4px;
 
           &.low {
-            color: #f56c6c;
+            color: var(--el-color-danger);
           }
         }
       }
@@ -554,7 +554,7 @@ onMounted(() => {
 
   .success-message {
     font-size: 16px;
-    color: #333;
+    color: var(--el-text-color-primary);
     margin: 0 0 20px;
   }
 
@@ -565,7 +565,7 @@ onMounted(() => {
 
     .code-label {
       margin: 0 0 8px;
-      color: #666;
+      color: var(--el-text-color-regular);
       font-size: 14px;
     }
 
@@ -580,7 +580,7 @@ onMounted(() => {
     .code-tip {
       margin: 0;
       font-size: 12px;
-      color: #999;
+      color: var(--el-text-color-secondary);
     }
   }
 }

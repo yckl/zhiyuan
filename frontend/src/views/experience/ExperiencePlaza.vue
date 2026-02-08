@@ -412,4 +412,53 @@ onMounted(fetchExperiences)
   justify-content: center;
   margin-top: 32px;
 }
+
+/* 暗黑模式适配 */
+html.dark .experience-plaza {
+  background-color: #0f172a !important;
+  
+  h2 {
+    color: #f1f5f9 !important;
+  }
+  
+  .subtitle {
+    color: #94a3b8 !important;
+  }
+  
+  .filter-bar {
+    background-color: #1e293b !important;
+    
+    :deep(.el-input__wrapper),
+    :deep(.el-radio-button__inner) {
+      background-color: #334155 !important;
+      color: #e2e8f0 !important;
+      border-color: #475569 !important;
+    }
+  }
+  
+  .experience-card {
+    background-color: #1e293b !important;
+    
+    .card-title {
+      color: #f1f5f9 !important;
+    }
+    
+    .card-summary {
+      color: #94a3b8 !important;
+    }
+    
+    .author-name {
+      color: #e2e8f0 !important;
+    }
+    
+    .publish-time,
+    .stat-item {
+      color: #94a3b8 !important;
+    }
+    
+    .cover-error {
+      background-color: #334155 !important;
+    }
+  }
+}
 </style>

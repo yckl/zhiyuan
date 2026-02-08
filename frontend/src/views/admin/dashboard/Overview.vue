@@ -2,7 +2,7 @@
   <div class="dashboard-container" v-loading="loading">
     <!-- 1. 顶部数据卡片 -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="12" :lg="6">
         <el-card shadow="hover" class="stats-card blue-card">
           <div class="stats-content">
             <div class="icon-wrapper">
@@ -15,7 +15,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="12" :lg="6">
         <el-card shadow="hover" class="stats-card green-card">
           <div class="stats-content">
             <div class="icon-wrapper">
@@ -28,7 +28,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="12" :lg="6">
         <el-card shadow="hover" class="stats-card purple-card">
           <div class="stats-content">
             <div class="icon-wrapper">
@@ -41,7 +41,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :xs="12" :sm="12" :md="12" :lg="6">
         <el-card shadow="hover" class="stats-card red-card">
           <div class="stats-content">
             <div class="icon-wrapper">
@@ -58,7 +58,7 @@
 
     <!-- 2. 中间图表区 -->
     <el-row :gutter="20" class="charts-row">
-      <el-col :span="14">
+      <el-col :xs="24" :sm="24" :md="14" :lg="14">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -68,7 +68,7 @@
           <div ref="lineChartRef" class="chart-container"></div>
         </el-card>
       </el-col>
-      <el-col :span="10">
+      <el-col :xs="24" :sm="24" :md="10" :lg="10">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -365,6 +365,57 @@ const handleAction = (task: any) => {
   }
   .chart-card {
     background-color: var(--el-bg-color-overlay);
+  }
+}
+
+// 移动端响应式适配 - 2x2 田字格布局
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 8px;
+  }
+  
+  .stats-row {
+    margin-bottom: 12px;
+    
+    // 减小 gutter
+    .el-col {
+      padding-left: 6px !important;
+      padding-right: 6px !important;
+    }
+  }
+  
+  .stats-card {
+    height: 70px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    
+    :deep(.el-card__body) {
+      padding: 8px !important;
+    }
+    
+    .stats-content {
+      padding: 0 8px;
+    }
+    
+    .icon-wrapper {
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      margin-right: 8px;
+    }
+    
+    .info {
+      .label { font-size: 11px; }
+      .value { font-size: 16px; }
+    }
+  }
+  
+  .chart-card {
+    margin-bottom: 12px;
+    
+    .chart-container {
+      height: 220px;
+    }
   }
 }
 </style>

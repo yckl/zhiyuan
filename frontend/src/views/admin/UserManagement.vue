@@ -269,7 +269,7 @@
         <template #footer>
             <span class="dialog-footer">
                 <el-button @click="addVisible = false">取消</el-button>
-                <el-button type="primary" :loading="addLoading" @click="submitAddUser">提交</el-button>
+                <el-button type="primary" :loading="addLoading" :disabled="addLoading" @click="submitAddUser">提交</el-button>
             </span>
         </template>
     </el-dialog>
@@ -291,7 +291,7 @@
         <template #footer>
             <span class="dialog-footer">
                 <el-button @click="pointsVisible = false">取消</el-button>
-                <el-button type="primary" :loading="pointsLoading" @click="submitAdjustPoints">确认调整</el-button>
+                <el-button type="primary" :loading="pointsLoading" :disabled="pointsLoading" @click="submitAdjustPoints">确认调整</el-button>
             </span>
         </template>
     </el-dialog>
@@ -504,7 +504,9 @@ const submitAddUser = async () => {
                 addVisible.value = false
                 fetchUsers()
                 fetchStats()
-            } catch (error) {
+            } catch (error: any) {
+                const msg = error.response?.data?.message || '新增志愿者失败，请稍后重试'
+                ElMessage.error(msg)
                 console.error(error)
             } finally {
                 addLoading.value = false
@@ -520,7 +522,9 @@ const handleDeleteUser = async (row: any) => {
         ElMessage.success('删除成功')
         fetchUsers()
         fetchStats()
-    } catch (error) {
+    } catch (error: any) {
+        const msg = error.response?.data?.message || '删除失败，请稍后重试'
+        ElMessage.error(msg)
         console.error(error)
     }
 }
@@ -567,7 +571,9 @@ const submitAdjustPoints = async () => {
                 ElMessage.success('积分调整成功')
                 pointsVisible.value = false
                 // 不需要刷新整个列表，或者刷新积分（列表里没有积分字段，所以这里纯通知）
-            } catch (error) {
+            } catch (error: any) {
+                const msg = error.response?.data?.message || '积分调整失败，请稍后重试'
+                ElMessage.error(msg)
                 console.error(error)
             } finally {
                 pointsLoading.value = false

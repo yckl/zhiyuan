@@ -187,9 +187,20 @@ public class AdminActivityController {
 
         activity.setStatus(Activity.STATUS_CANCELLED);
         activity.setAuditRemark(reason); // Record reason
-        // Maybe notify organizer? (TODO)
 
         activityMapper.updateById(activity);
+
+        // Notify organizer about forced offline
+        Organizer org = organizerMapper.selectById(activity.getOrganizerId());
+        if (org != null && org.getUserId() != null) {
+            sysMessageService.sendMessage(
+                    org.getUserId(),
+                    1L,
+                    "活动下架通知",
+                    "您的活动【" + activity.getTitle() + "】已被管理员强制下架，原因：" + (reason != null ? reason : "未说明"),
+                    "SYSTEM");
+        }
+
         return Result.success("活动已下架");
     }
 

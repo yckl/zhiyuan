@@ -7,8 +7,10 @@ import com.volunteer.common.Result;
 import com.volunteer.entity.Activity;
 import com.volunteer.entity.ActivityRegistration;
 import com.volunteer.entity.SysMessage;
+import com.volunteer.entity.Volunteer;
 import com.volunteer.mapper.ActivityMapper;
 import com.volunteer.mapper.ActivityRegistrationMapper;
+import com.volunteer.mapper.VolunteerMapper;
 import com.volunteer.service.NotificationService;
 import com.volunteer.service.SysMessageService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final ActivityMapper activityMapper;
     private final ActivityRegistrationMapper registrationMapper;
+    private final VolunteerMapper volunteerMapper;
     private final SysMessageService messageService;
 
     @Override
@@ -127,8 +130,21 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         List<ActivityRegistration> registrations = registrationMapper.selectList(query);
-        return registrations.stream()
+        List<Long> volunteerIds = registrations.stream()
                 .map(ActivityRegistration::getVolunteerId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (volunteerIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 关键修复: 将 volunteer.id 转换为 volunteer.user_id
+        // 因为 sys_message.receiver_id 应该存储 sys_user.id
+        List<Volunteer> volunteers = volunteerMapper.selectBatchIds(volunteerIds);
+        return volunteers.stream()
+                .map(Volunteer::getUserId)
+                .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toList());
     }

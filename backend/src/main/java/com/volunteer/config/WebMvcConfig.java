@@ -1,23 +1,49 @@
 package com.volunteer.config;
 
+import com.volunteer.interceptor.MaintenanceInterceptor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * WebMvc配置 - 静态资源映射
+ * WebMvc配置 - 静态资源映射 & 拦截器
  */
 @Configuration
+@RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {
 
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
+    private final MaintenanceInterceptor maintenanceInterceptor;
+
     @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
         // 将 /files/** 映射到本地 uploads 目录
         registry.addResourceHandler("/files/**")
                 .addResourceLocations("file:" + uploadDir + "/");
+    }
+
+    @Override
+    public void addCorsMappings(@NonNull org.springframework.web.servlet.config.annotation.CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*", "http://localhost:*", "http://127.0.0.1:*", "http://192.168.*.*:*",
+                        "http://10.*.*.*:*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
+    }
+
+    @Override
+    public void addInterceptors(@NonNull InterceptorRegistry registry) {
+        // 维护模式拦截器 - 应用于所有路径
+        registry.addInterceptor(maintenanceInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns("/files/**", "/error"); // 静态资源和错误页除外
     }
 }

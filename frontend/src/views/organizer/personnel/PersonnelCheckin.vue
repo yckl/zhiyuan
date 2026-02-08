@@ -52,19 +52,37 @@
           <el-card class="qr-card" shadow="hover">
             <div class="qr-zone">
               <h2 class="qr-title">扫码签到</h2>
-              <div class="qr-code-wrapper">
-                <!-- QR Code 占位符 - 使用 canvas 或图片模拟 -->
-                <div class="qr-placeholder">
-                  <div class="qr-grid">
-                    <div v-for="i in 121" :key="i" 
-                         :class="['qr-cell', Math.random() > 0.5 ? 'filled' : '']">
+              <div class="qr-code-wrapper" v-loading="qrLoading">
+                <div class="qr-code-box" v-if="checkinData.checkinCode">
+                  <!-- 二维码图片 (如果不方便引入库，可暂时用图片占位，重点展示签到码) -->
+                  <!-- 这里假设后端返回的是 token，前端生成 QR，或者后端直接返回 QR 图片Url -->
+                  <!-- 简化方案：直接展示大号签到码 -->
+                  <div class="check-code-display">
+                    <div class="label">活动签到码</div>
+                    <div class="code">{{ checkinData.checkinCode }}</div>
+                  </div>
+                  
+                  <div class="qr-placeholder" v-if="checkinData.qrcodeContent">
+                    <!-- 这里可以使用 qrcode.vue 组件，如果项目中引入了的话 -->
+                    <!-- 暂时保留样式，但提示这是二维码区域 -->
+                    <div class="qr-grid">
+                      <div v-for="i in 121" :key="i" 
+                           :class="['qr-cell', Math.random() > 0.5 ? 'filled' : '']">
+                      </div>
+                    </div>
+                    <div class="qr-logo">
+                      <el-icon :size="32"><VideoCamera /></el-icon>
                     </div>
                   </div>
-                  <div class="qr-logo">
-                    <el-icon :size="32"><VideoCamera /></el-icon>
+                  <div class="qr-hint">
+                    请志愿者输入签到码或扫码签到
+                    <el-button link type="primary" size="small" @click="fetchCheckinCode">刷新</el-button>
                   </div>
                 </div>
-                <div class="qr-hint">请使用志愿者 APP 扫码签到</div>
+                <div v-else class="qr-error">
+                  <el-empty description="无法获取签到码" />
+                  <el-button type="primary" @click="fetchCheckinCode">重新获取</el-button>
+                </div>
               </div>
 
               <!-- 进度统计 -->
@@ -212,6 +230,8 @@ const loading = ref(false)
 const processingId = ref<number | null>(null)
 const searchKeyword = ref('')
 const refreshTimer = ref<number | null>(null)
+const checkinData = ref<any>({})
+const qrLoading = ref(false)
 
 // 状态映射
 const STATUS_MAP: Record<number, { label: string; type: string }> = {
@@ -298,15 +318,32 @@ const fetchRegistrations = async () => {
   if (!activityId.value) return
   loading.value = true
   try {
-    // 获取已通过审核的报名列表
+    // 获取已通过审核(1)和已签到(2)的报名列表
     const res = await request.get(`/registration/activity/${activityId.value}`, {
-      status: 1, page: 1, size: 1000
+      page: 1, size: 1000
     })
-    registrations.value = res.data?.records || res.data || []
+    // 过滤出状态为1或2的记录
+    const allRecords = res.data?.records || res.data || []
+    registrations.value = allRecords.filter((r: any) => r.status === 1 || r.status === 2)
   } catch (e) {
     console.error('获取报名列表失败:', e)
   } finally {
     loading.value = false
+  }
+}
+
+const fetchCheckinCode = async () => {
+  if (!activityId.value) return
+  qrLoading.value = true
+  try {
+    const res = await request.get(`/organizer/checkin/activity/${activityId.value}/qrcode`)
+    checkinData.value = res.data || {}
+    console.log('签到码获取成功:', checkinData.value)
+  } catch (e) {
+    console.error('获取签到码失败:', e)
+    ElMessage.error('获取签到码失败')
+  } finally {
+    qrLoading.value = false
   }
 }
 
@@ -352,6 +389,7 @@ watch(activityId, (newId) => {
   if (newId) {
     fetchActivity()
     fetchRegistrations()
+    fetchCheckinCode() // 获取签到码
     startAutoRefresh()
   } else {
     fetchActivities()
@@ -456,6 +494,27 @@ onUnmounted(() => {
         justify-content: center;
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         .el-icon { color: #409eff; }
+      }
+    }
+
+    .check-code-display {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      
+      .label {
+        font-size: 14px;
+        opacity: 0.8;
+        margin-bottom: 5px;
+      }
+      
+      .code {
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: 4px;
+        color: #ffd04b;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
       }
     }
 

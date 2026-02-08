@@ -809,4 +809,72 @@ onMounted(() => {
     }
   }
 }
+
+/* 暗黑模式适配 */
+html.dark .course-detail-page {
+  background-color: #0f172a !important;
+  
+  .video-section {
+    background-color: #1e293b !important;
+    
+    h1, h3 {
+      color: #f1f5f9 !important;
+    }
+    
+    .meta-item {
+      color: #94a3b8 !important;
+    }
+    
+    .summary-content {
+      color: #cbd5e1 !important;
+    }
+  }
+  
+  .exam-card {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    
+    .card-header span {
+      color: #f1f5f9 !important;
+    }
+    
+    .info-row {
+      border-bottom-color: #334155 !important;
+      
+      .label {
+        color: #94a3b8 !important;
+      }
+      
+      .value {
+        color: #e2e8f0 !important;
+      }
+    }
+    
+    .exam-tip {
+      color: #94a3b8 !important;
+    }
+  }
+  
+  .question-title {
+    color: #f1f5f9 !important;
+  }
+  
+  .option-item {
+    background-color: #334155 !important;
+    color: #e2e8f0 !important;
+    
+    &:hover {
+      background-color: #1e3a5f !important;
+    }
+  }
+  
+  .result-score {
+    color: #f1f5f9 !important;
+  }
+  
+  .result-detail {
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+  }
+}
 </style>

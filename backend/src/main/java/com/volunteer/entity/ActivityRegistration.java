@@ -54,6 +54,12 @@ public class ActivityRegistration implements Serializable {
     /** 签到二维码 */
     private String qrCode;
 
+    /** 评分 (1-5) */
+    private Integer rating;
+
+    /** 评价评语 */
+    private String ratingComment;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 

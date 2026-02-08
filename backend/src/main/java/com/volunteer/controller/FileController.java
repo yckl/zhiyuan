@@ -1,11 +1,16 @@
 package com.volunteer.controller;
 
 import com.volunteer.common.Result;
+import com.volunteer.entity.SysUser;
+import com.volunteer.mapper.SysUserMapper;
 import com.volunteer.service.FileService;
+import com.volunteer.util.FileUploadValidator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -16,15 +21,18 @@ import java.util.Map;
 
 /**
  * 文件上传控制器
+ * 所有文件操作需要登录
  */
 @Slf4j
 @RestController
 @RequestMapping("/file")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "文件上传", description = "文件上传管理")
 public class FileController {
 
     private final FileService fileService;
+    private final SysUserMapper sysUserMapper;
 
     /**
      * 单文件上传
@@ -35,6 +43,9 @@ public class FileController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "folder", required = false) String folder) {
         try {
+            // 文件安全验证
+            FileUploadValidator.validate(file);
+
             String url = fileService.uploadFile(file, folder);
             Map<String, String> result = new HashMap<>();
             result.put("url", url);
@@ -55,6 +66,11 @@ public class FileController {
             @RequestParam("files") MultipartFile[] files,
             @RequestParam(value = "folder", required = false) String folder) {
         try {
+            // 验证所有文件
+            for (MultipartFile file : files) {
+                FileUploadValidator.validate(file);
+            }
+
             List<Map<String, String>> results = new ArrayList<>();
             for (MultipartFile file : files) {
                 String url = fileService.uploadFile(file, folder);
@@ -71,13 +87,30 @@ public class FileController {
     }
 
     /**
-     * 上传头像
+     * 上传头像 - 同时更新数据库
      */
     @PostMapping("/upload/avatar")
-    @Operation(summary = "上传头像", description = "上传用户头像")
+    @Operation(summary = "上传头像", description = "上传用户头像并更新到数据库")
     public Result<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file) {
         try {
+            // 头像必须是图片
+            FileUploadValidator.validateImage(file);
+
+            // 1. 上传文件获取URL
             String url = fileService.uploadFile(file, "avatar");
+
+            // 2. 获取当前登录用户并更新数据库【关键修复】
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            SysUser currentUser = sysUserMapper.selectOne(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysUser>()
+                            .eq(SysUser::getUsername, username));
+
+            if (currentUser != null) {
+                currentUser.setAvatar(url);
+                sysUserMapper.updateById(currentUser);
+                log.info("用户 {} 头像已更新: {}", username, url);
+            }
+
             Map<String, String> result = new HashMap<>();
             result.put("url", url);
             return Result.success("上传成功", result);
@@ -94,6 +127,9 @@ public class FileController {
     @Operation(summary = "上传封面", description = "上传活动封面图片")
     public Result<Map<String, String>> uploadCover(@RequestParam("file") MultipartFile file) {
         try {
+            // 封面必须是图片
+            FileUploadValidator.validateImage(file);
+
             String url = fileService.uploadFile(file, "cover");
             Map<String, String> result = new HashMap<>();
             result.put("url", url);

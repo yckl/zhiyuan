@@ -25,12 +25,21 @@ export const useUserStore = defineStore('user', () => {
         localStorage.removeItem('token')
     }
 
+    // 单独更新头像【关键：解决右上角头像不同步问题】
+    function setAvatar(avatarUrl: string) {
+        if (userInfo.value) {
+            userInfo.value.avatar = avatarUrl
+            localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
+        }
+    }
+
     return {
         userInfo,
         token,
         isLoggedIn,
         role,
         setUser,
-        clearUser
+        clearUser,
+        setAvatar
     }
 })

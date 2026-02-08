@@ -73,8 +73,8 @@
             :total="total"
             :page-sizes="[10, 20, 50]"
             layout="total, sizes, prev, pager, next, jumper"
-            @size-change="handleQuery"
-            @current-change="handleQuery"
+            @size-change="handleSizeChange"
+            @current-change="fetchData"
          />
       </div>
     </el-card>
@@ -164,6 +164,11 @@ const fetchData = async () => {
 }
 
 const handleQuery = () => {
+    queryParams.page = 1
+    fetchData()
+}
+
+const handleSizeChange = () => {
     queryParams.page = 1
     fetchData()
 }

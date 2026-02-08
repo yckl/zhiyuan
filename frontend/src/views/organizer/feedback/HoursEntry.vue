@@ -196,13 +196,13 @@ const pendingCount = computed(() => attendees.value.filter(a => a.status !== 'SE
 const settledCount = computed(() => attendees.value.filter(a => a.status === 'SETTLED').length)
 const totalHours = computed(() => attendees.value.reduce((sum, a) => sum + (a.hours || 0), 0))
 
-// 获取活动列表 (已完成和进行中的)
+// 获取活动列表 (已发布、进行中、已完成的)
 const fetchActivities = async () => {
   try {
     const res = await request.get('/activity/my', { page: 1, size: 100 })
-    // 筛选进行中(3)和已结束(4)的活动
+    // 筛选已发布(2)、进行中(3)、已结束(4)的活动
     activities.value = (res.data?.records || []).filter(
-      (a: any) => a.status === 3 || a.status === 4
+      (a: any) => a.status === 2 || a.status === 3 || a.status === 4
     )
   } catch (e) {
     console.error('获取活动列表失败:', e)
@@ -218,35 +218,33 @@ const fetchAttendees = async () => {
 
   loading.value = true
   try {
-    // 获取已签到的报名记录
+    // 获取所有报名记录，然后筛选已签到(2)和已完成(3)的
     const res = await request.get(`/registration/activity/${selectedActivityId.value}`, {
-      status: 1, // 已通过
       page: 1,
       size: 1000
     })
 
     const records = res.data?.records || res.data || []
     
-    // 只保留已签到的
+    // 只保留已签到(2)和已完成(3)的记录
     attendees.value = records
-      .filter((r: any) => r.signInTime)
+      .filter((r: any) => r.status === 2 || r.status === 3)
       .map((r: any) => ({
         id: r.id,
         volunteerId: r.volunteerId,
         name: r.volunteerName || '未知',
-        studentId: r.studentId || '-',
+        studentId: r.studentNo || r.studentId || '-',
         avatar: r.volunteerAvatar,
         checkIn: r.signInTime ? formatTime(r.signInTime) : null,
         checkOut: r.signOutTime ? formatTime(r.signOutTime) : null,
-        hours: r.actualHours || 0,
+        hours: r.actualHours || selectedActivity.value?.serviceHours || 0,
         rating: r.rating || 5,
-        status: r.actualHours > 0 ? 'SETTLED' : 'PENDING',
+        status: r.status === 3 ? 'SETTLED' : 'PENDING', // 已完成=已结算
         submitting: false
       }))
   } catch (e) {
     console.error('获取签到列表失败:', e)
-    // Mock 数据作为后备
-    attendees.value = generateMockData()
+    attendees.value = []
   } finally {
     loading.value = false
   }
@@ -300,17 +298,16 @@ const submitSingle = async (row: any) => {
 
   row.submitting = true
   try {
-    await request.post('/registration/settle', {
+    await request.post('/organizer/settlement/settle', {
       registrationId: row.id,
       hours: row.hours,
       rating: row.rating
     })
     row.status = 'SETTLED'
     ElMessage.success(`${row.name} 结算成功，已发放积分`)
-  } catch (e) {
-    // Mock 成功
-    row.status = 'SETTLED'
-    ElMessage.success(`${row.name} 结算成功，已发放积分`)
+  } catch (e: any) {
+    console.error('结算失败:', e)
+    ElMessage.error(e.msg || '结算失败，请重试')
   } finally {
     row.submitting = false
   }
@@ -340,8 +337,8 @@ const submitAll = async () => {
 
   submitting.value = true
   try {
-    // 批量结算
-    await request.post('/registration/settle/batch', {
+    // 批量结算 - 使用正确的API
+    const res = await request.post('/organizer/settlement/batch', {
       items: toSettle.map(a => ({
         registrationId: a.id,
         hours: a.hours,
@@ -349,11 +346,13 @@ const submitAll = async () => {
       }))
     })
     toSettle.forEach(a => a.status = 'SETTLED')
-    ElMessage.success(`结算成功！已为 ${toSettle.length} 人发放积分`)
-  } catch (e) {
-    // Mock 成功
-    toSettle.forEach(a => a.status = 'SETTLED')
-    ElMessage.success(`结算成功！已为 ${toSettle.length} 人发放积分`)
+    const batchResult = res.data || {}
+    ElMessage.success(`结算成功！已为 ${batchResult.success || toSettle.length} 人发放积分`)
+    // 刷新列表
+    await fetchAttendees()
+  } catch (e: any) {
+    console.error('批量结算失败:', e)
+    ElMessage.error(e.msg || '批量结算失败，请重试')
   } finally {
     submitting.value = false
   }

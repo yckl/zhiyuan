@@ -56,6 +56,14 @@ public class OrganizerCheckinController {
                 return Result.error("无权操作此活动");
             }
 
+            // 确保活动有签到码
+            if (activity.getCheckinCode() == null) {
+                // 生成6位数字签到码
+                String code = String.valueOf((int) ((Math.random() * 9 + 1) * 100000));
+                activity.setCheckinCode(code);
+                activityMapper.updateById(activity);
+            }
+
             // 生成签到Token (简单实现：activityId + timestamp + 随机数的Base64编码)
             long timestamp = System.currentTimeMillis();
             long expireAt = timestamp + 60000; // 1分钟后过期
@@ -65,6 +73,7 @@ public class OrganizerCheckinController {
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("token", token);
+            result.put("checkinCode", activity.getCheckinCode()); // 返回签到码
             result.put("activityId", activityId);
             result.put("expireAt", expireAt);
             result.put("qrcodeContent", "volunteer://checkin?token=" + token);

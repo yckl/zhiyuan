@@ -114,4 +114,10 @@ public class ActivityDTO {
 
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
+
+    @Schema(description = "是否推荐")
+    private Boolean isRecommended;
+
+    @Schema(description = "是否最近浏览")
+    private Boolean isRecentlyViewed;
 }

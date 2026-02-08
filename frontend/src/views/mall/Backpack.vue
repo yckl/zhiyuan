@@ -372,7 +372,7 @@ onMounted(() => {
 <style lang="scss" scoped>
 .backpack-page {
   padding: 20px;
-  background: #f5f7fa;
+  background: var(--el-bg-color-page);
   min-height: 100vh;
 }
 
@@ -388,16 +388,17 @@ onMounted(() => {
   h2 {
     margin: 0 0 8px;
     font-size: 24px;
+    color: var(--el-text-color-primary);
   }
 
   .subtitle {
     margin: 0;
-    color: #999;
+    color: var(--el-text-color-secondary);
   }
 }
 
 .backpack-tabs {
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
   padding: 0 20px;
   margin-bottom: 20px;
@@ -424,7 +425,7 @@ onMounted(() => {
 }
 
 .item-card {
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -454,16 +455,16 @@ onMounted(() => {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f5f5f5;
+      background: var(--el-fill-color-light);
       font-size: 48px;
-      color: #ddd;
+      color: var(--el-text-color-placeholder);
     }
 
     .quantity-badge {
       position: absolute;
       top: 8px;
       left: 8px;
-      background: #409eff;
+      background: var(--el-color-primary);
       color: #fff;
       padding: 2px 8px;
       border-radius: 10px;
@@ -485,13 +486,13 @@ onMounted(() => {
       margin: 0 0 8px;
       font-size: 15px;
       font-weight: 600;
-      color: #333;
+      color: var(--el-text-color-primary);
     }
 
     .item-source {
       margin: 0 0 8px;
       font-size: 12px;
-      color: #999;
+      color: var(--el-text-color-secondary);
       display: flex;
       align-items: center;
       gap: 4px;
@@ -503,7 +504,7 @@ onMounted(() => {
 
     .item-actions {
       .used-text {
-        color: #999;
+        color: var(--el-text-color-secondary);
         font-size: 13px;
       }
     }
@@ -516,7 +517,7 @@ onMounted(() => {
   .pickup-title {
     margin: 0 0 12px;
     font-weight: 500;
-    color: #333;
+    color: var(--el-text-color-primary);
   }
 
   .pickup-code-display {
@@ -536,19 +537,20 @@ onMounted(() => {
   .pickup-tip {
     margin: 0;
     font-size: 12px;
-    color: #999;
+    color: var(--el-text-color-secondary);
   }
 }
 
 .orders-section {
   margin-top: 40px;
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
   padding: 20px;
 
   h3 {
     margin: 0 0 16px;
     font-size: 16px;
+    color: var(--el-text-color-primary);
   }
 
   .order-goods {
@@ -558,20 +560,21 @@ onMounted(() => {
   }
 
   .points-cost {
-    color: #f56c6c;
+    color: var(--el-color-danger);
     font-weight: 500;
   }
 
   .no-code {
-    color: #ccc;
+    color: var(--el-text-color-placeholder);
   }
 }
 
 .content-display {
   padding: 20px;
-  background: #f5f5f5;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   white-space: pre-wrap;
   word-break: break-all;
+  color: var(--el-text-color-primary);
 }
 </style>

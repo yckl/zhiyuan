@@ -1,7 +1,9 @@
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\OperationLog.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\NoticeService.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\ActivityPageQuery.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\RegistrationDTO.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\SysConfig.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\AdminOperationLogController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\security\SecurityUtils.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\CheckinLotteryServiceImpl.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\CourseQuestion.java
@@ -14,6 +16,7 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\Banner.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\MallGoods.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\AdminFeedbackController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\CourseExamRecord.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\OperationLogMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\SigninRecordMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\NotificationHistoryVO.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\config\SchemaInitializer.java
@@ -33,6 +36,7 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\exception\GlobalExcept
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\NoticeController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\LocalFileServiceImpl.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\common\Result.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\ActivityViewLogMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\NotificationServiceImpl.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\VolunteerService.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\ActivityCategoryController.java
@@ -86,6 +90,8 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\Course.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\ActivityMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\MallOrderMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\CollectionMapper.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\BannerController.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\ActivityViewLog.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\BannerMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\ActivityDTO.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\ExamSubmitDTO.java
@@ -94,6 +100,7 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\CheckinLott
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\ActivityFavoriteController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\ActivityRequest.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\SigninRecord.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\CourseProgressMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\config\SecurityConfig.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\ActivityCategoryMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\UserLikeMapper.java
@@ -105,6 +112,7 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\VolunteerRe
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\ExperienceServiceImpl.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\AdminDashboardController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\Experience.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\interceptor\MaintenanceInterceptor.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\VolunteerMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\ActivityDetailVO.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\TrainingStatsVO.java
@@ -117,16 +125,19 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\ActivityCon
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\Activity.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\ActivityService.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\Volunteer.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\FeedbackController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\NotificationService.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\ReviewController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\CategoryController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\admin\AdminStatsVO.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\aspect\OperationLogAspect.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\admin\AdminActivityVO.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\StatisticsMapper.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\CourseExamServiceImpl.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\NoticeServiceImpl.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\OrganizerCheckinController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\UserPageQuery.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\scheduler\ActivityStatusScheduler.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\OrgStatisticsController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\LoginResponse.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\CourseExamRecordMapper.java
@@ -138,6 +149,7 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\VolunteerStatsVO.ja
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\AdminVolunteerController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\SysLog.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\mapper\ActivityReviewMapper.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\CourseProgress.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\Notice.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\UserVO.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\StatisticsVO.java
@@ -148,6 +160,7 @@ D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\impl\Collectio
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\UserProps.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\entity\ActivityRegistration.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\service\SysMessageService.java
+D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\util\FileUploadValidator.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\controller\PointsMallController.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\dto\ExperienceRequest.java
 D:\xiaoyuanzhiyuanzhe\backend\src\main\java\com\volunteer\vo\admin\OrganizerInfoVO.java

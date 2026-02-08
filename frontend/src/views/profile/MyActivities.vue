@@ -55,18 +55,54 @@
             </el-tag>
           </template>
         </el-table-column>
+
+        <el-table-column label="备注/原因" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.status === 6 && row.remark" class="text-danger">{{ row.remark }}</span>
+            <span v-else>{{ row.remark || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="获得评分" width="140" align="center">
+          <template #default="{ row }">
+            <div v-if="row.rating" class="rating-cell">
+               <el-tooltip :content="row.ratingComment || '暂无评语'" placement="top">
+                 <el-rate
+                    v-model="row.rating"
+                    disabled
+                    show-score
+                    text-color="#ff9900"
+                    score-template="{value}"
+                  />
+               </el-tooltip>
+            </div>
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
         
         <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <!-- 查看详情 -->
+              <!-- 签到：仅当已通过(1)或已通过需签到 且活动并未结束 -->
               <el-button 
+                v-if="row.status === 1"
+                type="success" 
+                link 
+                size="small"
+                @click="openCheckin(row)"
+              >
+                <el-icon><Location /></el-icon> 签到
+              </el-button>
+
+              <!-- 重新报名：仅当已拒绝(6) 或 已取消(4) -->
+              <el-button 
+                v-if="row.status === 6 || row.status === 4"
                 type="primary" 
                 link 
                 size="small"
                 @click="router.push(`/activity/${row.activityId}`)"
               >
-                <el-icon><View /></el-icon> 查看
+                <el-icon><RefreshRight /></el-icon> 重新报名
               </el-button>
               
               <!-- 取消报名：仅当待审核或已通过且活动未开始时 -->
@@ -111,6 +147,40 @@
         </el-table-column>
       </el-table>
 
+      <!-- 签到弹窗 -->
+      <el-dialog
+        v-model="checkinVisible"
+        title="活动签到"
+        width="360px"
+        center
+        destroy-on-close
+      >
+        <div class="checkin-content">
+          <p class="checkin-tip">请输入活动现场公布的6位签到码</p>
+          <el-input
+            v-model="checkinCode"
+            maxlength="6"
+            placeholder="请输入签到码"
+            size="large"
+            style="letter-spacing: 2px; text-align: center;"
+            input-style="text-align: center; font-size: 18px; font-weight: bold;"
+            @keyup.enter="submitCheckin"
+          >
+            <template #prefix>
+              <el-icon><Key /></el-icon>
+            </template>
+          </el-input>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="checkinVisible = false">取消</el-button>
+            <el-button type="primary" @click="submitCheckin" :loading="checkingIn" :disabled="checkinCode.length !== 6">
+              确认签到
+            </el-button>
+          </span>
+        </template>
+      </el-dialog>
+
       <review-dialog ref="reviewDialogRef" @success="fetchRegistrations" />
 
       <el-empty v-if="!loading && registrations.length === 0" description="暂无报名记录" :image-size="120" />
@@ -135,7 +205,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Clock, Calendar, View, Close, Edit, ChatLineRound } from '@element-plus/icons-vue'
+import { Clock, Calendar, Close, Edit, ChatLineRound, Location, Key, RefreshRight } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
 import ReviewDialog from '@/components/ReviewDialog.vue'
 import dayjs from 'dayjs'
@@ -146,6 +216,10 @@ const loading = ref(false)
 const registrations = ref<any[]>([])
 const total = ref(0)
 const reviewDialogRef = ref()
+const checkinVisible = ref(false)
+const checkinCode = ref('')
+const checkingIn = ref(false)
+const currentActivityId = ref<number | null>(null)
 
 const queryParams = reactive({
   page: 1,
@@ -217,6 +291,32 @@ const handleReview = (activityId: number) => {
   reviewDialogRef.value?.show(activityId)
 }
 
+const openCheckin = (row: any) => {
+  checkinVisible.value = true
+  checkinCode.value = ''
+  currentActivityId.value = row.activityId // 其实此处可能不需要，因为是验证码
+}
+
+const submitCheckin = async () => {
+  if (checkinCode.value.length !== 6) {
+    ElMessage.warning('请输入6位签到码')
+    return
+  }
+  
+  checkingIn.value = true
+  try {
+    await request.post('/registration/signin/code', { code: checkinCode.value })
+    ElMessage.success('签到成功！')
+    checkinVisible.value = false
+    fetchRegistrations() // 刷新列表
+  } catch (e: any) {
+    console.error('签到失败:', e)
+    ElMessage.error(e.msg || '签到失败，请检查签到码')
+  } finally {
+    checkingIn.value = false
+  }
+}
+
 onMounted(() => {
   fetchRegistrations()
 })
@@ -267,6 +367,20 @@ onMounted(() => {
       padding-top: 20px;
       border-top: 1px solid #f0f0f0;
     }
+  }
+
+  .checkin-content {
+    text-align: center;
+    padding: 10px 0;
+    
+    .checkin-tip {
+      margin-bottom: 20px;
+      color: #606266;
+    }
+  }
+
+  .text-danger {
+    color: #f56c6c;
   }
 }
 </style>

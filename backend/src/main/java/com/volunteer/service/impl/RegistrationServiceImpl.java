@@ -42,9 +42,6 @@ public class RegistrationServiceImpl implements RegistrationService {
     private final SysUserMapper sysUserMapper;
     private final UserPropsMapper userPropsMapper;
 
-    // 用于并发控制的锁对象
-    private static final Object REGISTER_LOCK = new Object();
-
     private static final Map<Integer, String> STATUS_MAP = new HashMap<>();
     static {
         STATUS_MAP.put(0, "已报名");
@@ -64,104 +61,113 @@ public class RegistrationServiceImpl implements RegistrationService {
 
     /**
      * 报名活动（支持免审核卡）
+     * 使用数据库乐观锁替代JVM synchronized，支持集群部署
      */
     @Transactional(rollbackFor = Exception.class)
     public ActivityRegistration register(RegistrationRequest request, Long volunteerId, Boolean useSkipReviewCard) {
-        synchronized (REGISTER_LOCK) {
-            // 查询活动
-            Activity activity = activityMapper.selectById(request.getActivityId());
-            if (activity == null) {
-                throw new RuntimeException("活动不存在");
-            }
-
-            // 检查活动状态
-            if (!Activity.STATUS_PUBLISHED.equals(activity.getStatus())) {
-                throw new RuntimeException("活动未发布或已结束");
-            }
-
-            // 检查报名时间
-            LocalDateTime now = LocalDateTime.now();
-            if (activity.getRegisterEnd() != null && now.isAfter(activity.getRegisterEnd())) {
-                throw new RuntimeException("报名已截止");
-            }
-            if (activity.getRegisterStart() != null && now.isBefore(activity.getRegisterStart())) {
-                throw new RuntimeException("报名尚未开始");
-            }
-
-            // 查询志愿者
-            LambdaQueryWrapper<Volunteer> vQuery = new LambdaQueryWrapper<>();
-            vQuery.eq(Volunteer::getUserId, volunteerId);
-            Volunteer volunteer = volunteerMapper.selectOne(vQuery);
-            if (volunteer == null) {
-                throw new RuntimeException("志愿者信息不存在");
-            }
-
-            // 检查是否有现有记录（包括已取消或已删除的）
-            ActivityRegistration registration = registrationMapper.findAnyRegistration(request.getActivityId(),
-                    volunteer.getId());
-
-            if (registration != null) {
-                if (ActivityRegistration.STATUS_CANCELLED.equals(registration.getStatus())
-                        || registration.getIsDeleted() == 1) {
-                    // 确定新状态
-                    int targetStatus = ActivityRegistration.STATUS_REGISTERED;
-
-                    // 如果使用了免审核卡
-                    if (Boolean.TRUE.equals(useSkipReviewCard)) {
-                        consumeSkipCard(volunteer, request.getActivityId());
-                        targetStatus = ActivityRegistration.STATUS_CONFIRMED;
-                    }
-
-                    // 恢复记录逻辑
-                    registrationMapper.restoreRegistration(request.getActivityId(), volunteer.getId(), targetStatus);
-
-                    // 更新报名描述
-                    registration.setStatus(targetStatus);
-                    registration.setRemark(request.getRemark());
-                    registration.setUpdateTime(LocalDateTime.now());
-                    registration.setIsDeleted(0);
-                    registrationMapper.updateById(registration);
-
-                    log.info("用户 {} 重新激活/恢复活动报名 {}", volunteerId, request.getActivityId());
-                    return registration;
-                } else {
-                    throw new RuntimeException("您已报名该活动");
-                }
-            }
-
-            // 检查人数限制
-            if (activity.getMaxParticipants() > 0 &&
-                    activity.getCurrentParticipants() >= activity.getMaxParticipants()) {
-                throw new RuntimeException("报名人数已满");
-            }
-
-            // 创建新报名记录
-            registration = new ActivityRegistration();
-            registration.setActivityId(request.getActivityId());
-            registration.setVolunteerId(volunteer.getId());
-            registration.setRemark(request.getRemark());
-            registration.setCreateTime(LocalDateTime.now());
-            registration.setUpdateTime(LocalDateTime.now());
-            registration.setIsDeleted(0);
-
-            // 检查是否使用免审核卡
-            if (Boolean.TRUE.equals(useSkipReviewCard)) {
-                consumeSkipCard(volunteer, request.getActivityId());
-                registration.setStatus(ActivityRegistration.STATUS_CONFIRMED);
-            } else {
-                registration.setStatus(ActivityRegistration.STATUS_REGISTERED);
-            }
-
-            registrationMapper.insert(registration);
-
-            // 更新活动报名人数
-            activity.setCurrentParticipants(activity.getCurrentParticipants() + 1);
-            activity.setUpdateTime(LocalDateTime.now());
-            activityMapper.updateById(activity);
-
-            log.info("报名成功: activityId={}, volunteerId={}", request.getActivityId(), volunteer.getId());
-            return registration;
+        // 查询活动
+        Activity activity = activityMapper.selectById(request.getActivityId());
+        if (activity == null) {
+            throw new RuntimeException("活动不存在");
         }
+
+        // 检查活动状态
+        if (!Activity.STATUS_PUBLISHED.equals(activity.getStatus())) {
+            throw new RuntimeException("活动未发布或已结束");
+        }
+
+        // 检查报名时间
+        LocalDateTime now = LocalDateTime.now();
+        if (activity.getRegisterEnd() != null && now.isAfter(activity.getRegisterEnd())) {
+            throw new RuntimeException("报名已截止");
+        }
+        if (activity.getRegisterStart() != null && now.isBefore(activity.getRegisterStart())) {
+            throw new RuntimeException("报名尚未开始");
+        }
+
+        // 查询志愿者
+        LambdaQueryWrapper<Volunteer> vQuery = new LambdaQueryWrapper<>();
+        vQuery.eq(Volunteer::getUserId, volunteerId);
+        Volunteer volunteer = volunteerMapper.selectOne(vQuery);
+        if (volunteer == null) {
+            throw new RuntimeException("志愿者信息不存在");
+        }
+
+        // 检查时间冲突：志愿者是否已报名同一时间段的其他活动
+        if (activity.getStartTime() != null && activity.getEndTime() != null) {
+            java.util.List<ActivityRegistration> conflicts = registrationMapper.findConflictingRegistrations(
+                    volunteer.getId(), activity.getStartTime(), activity.getEndTime());
+            // 排除当前活动（恢复报名的情况）
+            conflicts = conflicts.stream()
+                    .filter(c -> !c.getActivityId().equals(request.getActivityId()))
+                    .collect(java.util.stream.Collectors.toList());
+            if (!conflicts.isEmpty()) {
+                throw new RuntimeException("您在该时间段已报名其他活动，请检查时间安排");
+            }
+        }
+
+        // 检查是否有现有记录（包括已取消或已删除的）
+        ActivityRegistration registration = registrationMapper.findAnyRegistration(request.getActivityId(),
+                volunteer.getId());
+
+        if (registration != null) {
+            if (ActivityRegistration.STATUS_CANCELLED.equals(registration.getStatus())
+                    || ActivityRegistration.STATUS_REJECTED.equals(registration.getStatus())
+                    || registration.getIsDeleted() == 1) {
+                // 确定新状态
+                int targetStatus = ActivityRegistration.STATUS_REGISTERED;
+
+                // 如果使用了免审核卡
+                if (Boolean.TRUE.equals(useSkipReviewCard)) {
+                    consumeSkipCard(volunteer, request.getActivityId());
+                    targetStatus = ActivityRegistration.STATUS_CONFIRMED;
+                }
+
+                // 恢复记录逻辑
+                registrationMapper.restoreRegistration(request.getActivityId(), volunteer.getId(), targetStatus);
+
+                // 更新报名描述
+                registration.setStatus(targetStatus);
+                registration.setRemark(request.getRemark());
+                registration.setUpdateTime(LocalDateTime.now());
+                registration.setIsDeleted(0);
+                registrationMapper.updateById(registration);
+
+                log.info("用户 {} 重新激活/恢复活动报名 {}", volunteerId, request.getActivityId());
+                return registration;
+            } else {
+                throw new RuntimeException("您已报名该活动");
+            }
+        }
+
+        // 使用乐观锁更新活动报名人数（集群安全）
+        // 只有当 max_participants 为 0（无限制）或 current_participants < max_participants 时才成功
+        int affected = activityMapper.incrementParticipants(request.getActivityId());
+        if (affected == 0) {
+            throw new RuntimeException("报名人数已满，请稍后重试");
+        }
+
+        // 创建新报名记录
+        registration = new ActivityRegistration();
+        registration.setActivityId(request.getActivityId());
+        registration.setVolunteerId(volunteer.getId());
+        registration.setRemark(request.getRemark());
+        registration.setCreateTime(LocalDateTime.now());
+        registration.setUpdateTime(LocalDateTime.now());
+        registration.setIsDeleted(0);
+
+        // 检查是否使用免审核卡
+        if (Boolean.TRUE.equals(useSkipReviewCard)) {
+            consumeSkipCard(volunteer, request.getActivityId());
+            registration.setStatus(ActivityRegistration.STATUS_CONFIRMED);
+        } else {
+            registration.setStatus(ActivityRegistration.STATUS_REGISTERED);
+        }
+
+        registrationMapper.insert(registration);
+
+        log.info("报名成功: activityId={}, volunteerId={}", request.getActivityId(), volunteer.getId());
+        return registration;
     }
 
     @Override
@@ -351,6 +357,69 @@ public class RegistrationServiceImpl implements RegistrationService {
         log.info("签到成功: registrationId={}", registrationId);
     }
 
+    /**
+     * 通过签到码签到
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void signInByCode(String code, Long volunteerUserId) {
+        // 1. 根据签到码查询活动 (注意：签到码可能重复，取最新未结束的活动)
+        // 为简化逻辑，假设签到码是唯一的或者只查询近期活动
+        LambdaQueryWrapper<Activity> query = new LambdaQueryWrapper<>();
+        query.eq(Activity::getCheckinCode, code)
+                .eq(Activity::getIsDeleted, 0)
+                .ge(Activity::getStatus, Activity.STATUS_PUBLISHED)
+                .le(Activity::getStatus, Activity.STATUS_ONGOING)
+                .orderByDesc(Activity::getCreateTime); // 取最新的
+
+        List<Activity> activities = activityMapper.selectList(query);
+        if (activities.isEmpty()) {
+            throw new RuntimeException("无效的签到码或活动已结束");
+        }
+        Activity activity = activities.get(0);
+
+        // 2. 查询志愿者信息
+        LambdaQueryWrapper<Volunteer> vQuery = new LambdaQueryWrapper<>();
+        vQuery.eq(Volunteer::getUserId, volunteerUserId);
+        Volunteer volunteer = volunteerMapper.selectOne(vQuery);
+        if (volunteer == null) {
+            throw new RuntimeException("志愿者信息不存在");
+        }
+
+        // 3. 查询报名记录
+        LambdaQueryWrapper<ActivityRegistration> regQuery = new LambdaQueryWrapper<>();
+        regQuery.eq(ActivityRegistration::getActivityId, activity.getId())
+                .eq(ActivityRegistration::getVolunteerId, volunteer.getId())
+                .eq(ActivityRegistration::getIsDeleted, 0);
+
+        ActivityRegistration registration = registrationMapper.selectOne(regQuery);
+        if (registration == null) {
+            throw new RuntimeException("您未报名该活动");
+        }
+
+        if (!ActivityRegistration.STATUS_CONFIRMED.equals(registration.getStatus())
+                && !ActivityRegistration.STATUS_SIGNED_IN.equals(registration.getStatus())) {
+            if (ActivityRegistration.STATUS_REGISTERED.equals(registration.getStatus())) {
+                throw new RuntimeException("您的报名尚待审核，无法签到");
+            }
+            if (ActivityRegistration.STATUS_CANCELLED.equals(registration.getStatus())
+                    || ActivityRegistration.STATUS_REJECTED.equals(registration.getStatus())) {
+                throw new RuntimeException("您的报名已取消或被拒绝");
+            }
+        }
+
+        if (registration.getStatus() >= ActivityRegistration.STATUS_SIGNED_IN) {
+            throw new RuntimeException("无需重复签到");
+        }
+
+        // 4. 执行签到
+        registration.setStatus(ActivityRegistration.STATUS_SIGNED_IN);
+        registration.setSignInTime(LocalDateTime.now());
+        registration.setUpdateTime(LocalDateTime.now());
+        registrationMapper.updateById(registration);
+
+        log.info("输码签到成功: code={}, activity={}, volunteer={}", code, activity.getId(), volunteer.getId());
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void signOut(Long registrationId, Long volunteerId) {
@@ -379,6 +448,39 @@ public class RegistrationServiceImpl implements RegistrationService {
         log.info("签退成功: registrationId={}", registrationId);
     }
 
+    /**
+     * 评价志愿者
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void rateVolunteer(Long registrationId, Integer rating, String comment, Long operatorId) {
+        ActivityRegistration registration = registrationMapper.selectById(registrationId);
+        if (registration == null) {
+            throw new RuntimeException("报名记录不存在");
+        }
+
+        Activity activity = activityMapper.selectById(registration.getActivityId());
+        if (activity == null) {
+            throw new RuntimeException("活动不存在");
+        }
+
+        // 验证权限：只有活动发布者可以评价
+        if (!activity.getOrganizerId().equals(operatorId) && !SecurityUtils.isAdmin()) {
+            throw new RuntimeException("无权评价");
+        }
+
+        // 只有已完成(3)状态才可以评价？或者已签到(2)也可以？通常是活动结束后评价
+        if (registration.getStatus() < ActivityRegistration.STATUS_SIGNED_IN) {
+            throw new RuntimeException("志愿者尚未完成签到，无法评价");
+        }
+
+        registration.setRating(rating);
+        registration.setRatingComment(comment);
+        registration.setUpdateTime(LocalDateTime.now());
+
+        registrationMapper.updateById(registration);
+        log.info("评价志愿者成功: regId={}, rating={}", registrationId, rating);
+    }
+
     @Override
     public boolean hasRegistered(Long activityId, Long volunteerId) {
         LambdaQueryWrapper<ActivityRegistration> queryWrapper = new LambdaQueryWrapper<>();
@@ -388,6 +490,7 @@ public class RegistrationServiceImpl implements RegistrationService {
         return registrationMapper.selectCount(queryWrapper) > 0;
     }
 
+    @SuppressWarnings("null")
     private RegistrationDTO convertToDTO(ActivityRegistration registration) {
         RegistrationDTO dto = new RegistrationDTO();
         BeanUtils.copyProperties(registration, dto);
@@ -415,6 +518,10 @@ public class RegistrationServiceImpl implements RegistrationService {
                 dto.setVolunteerAvatar(user.getAvatar());
             }
         }
+
+        // 评分信息
+        dto.setRating(registration.getRating());
+        dto.setRatingComment(registration.getRatingComment());
 
         return dto;
     }

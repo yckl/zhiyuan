@@ -50,6 +50,7 @@ public class ExperienceServiceImpl implements ExperienceService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @SuppressWarnings("null")
     public Experience createExperience(ExperienceRequest request, Long userId) {
         // 查询志愿者
         LambdaQueryWrapper<Volunteer> vQuery = new LambdaQueryWrapper<>();
@@ -212,6 +213,7 @@ public class ExperienceServiceImpl implements ExperienceService {
         }
     }
 
+    @SuppressWarnings("null")
     private ExperienceDTO convertToDTO(Experience experience) {
         ExperienceDTO dto = new ExperienceDTO();
         BeanUtils.copyProperties(experience, dto);

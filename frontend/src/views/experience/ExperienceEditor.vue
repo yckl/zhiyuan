@@ -47,7 +47,7 @@
 
           <div class="form-footer">
             <el-button @click="router.back()">取消</el-button>
-            <el-button type="primary" :loading="submitting" @click="handleSubmit">
+            <el-button type="primary" :loading="submitting" :disabled="submitting" @click="handleSubmit">
               {{ isEdit ? '保存修改' : '确认发布' }}
             </el-button>
           </div>

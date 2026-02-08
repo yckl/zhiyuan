@@ -227,14 +227,14 @@ onMounted(fetchCourses)
 
   .subtitle {
     margin: 0;
-    color: #999;
+    color: var(--el-text-color-secondary);
   }
 
   .exam-link {
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #409eff;
+    color: var(--el-color-primary);
     font-size: 14px;
     text-decoration: none;
 
@@ -250,7 +250,7 @@ onMounted(fetchCourses)
   gap: 16px;
   margin-bottom: 16px;
   padding: 16px 20px;
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
 
   .category-filters {
@@ -260,9 +260,10 @@ onMounted(fetchCourses)
 
     :deep(.el-radio-button__inner) {
       border-radius: 20px !important;
-      border: 1px solid #dcdfe6 !important;
+      border: 1px solid var(--el-border-color) !important;
       margin-right: 8px;
       margin-bottom: 8px;
+      background: var(--el-fill-color-blank) !important;
     }
 
     :deep(.el-radio-button:first-child .el-radio-button__inner) {
@@ -279,7 +280,7 @@ onMounted(fetchCourses)
   margin-bottom: 16px;
 
   .count {
-    color: #999;
+    color: var(--el-text-color-secondary);
     font-size: 14px;
   }
 }
@@ -291,7 +292,7 @@ onMounted(fetchCourses)
 }
 
 .course-card {
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -372,7 +373,7 @@ onMounted(fetchCourses)
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      color: #333;
+      color: var(--el-text-color-primary);
     }
 
     .course-instructor {
@@ -380,7 +381,7 @@ onMounted(fetchCourses)
       align-items: center;
       gap: 4px;
       font-size: 13px;
-      color: #666;
+      color: var(--el-text-color-secondary);
       margin: 0 0 12px;
     }
 
@@ -390,10 +391,10 @@ onMounted(fetchCourses)
       align-items: center;
 
       .difficulty {
-        color: #ddd;
+        color: var(--el-text-color-placeholder);
         
         .active {
-          color: #f7ba2a;
+          color: var(--el-color-warning);
         }
       }
 
@@ -402,7 +403,7 @@ onMounted(fetchCourses)
         align-items: center;
         gap: 4px;
         font-size: 13px;
-        color: #e6a23c;
+        color: var(--el-color-warning);
         font-weight: 500;
       }
     }

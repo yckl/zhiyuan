@@ -49,7 +49,7 @@
 
         <el-table-column label="正确率" width="100" align="center">
           <template #default="{ row }">
-            {{ Math.round((row.correctCount / row.totalCount) * 100) }}%
+            {{ row.totalCount > 0 ? Math.round((row.correctCount / row.totalCount) * 100) : 0 }}%
           </template>
         </el-table-column>
 

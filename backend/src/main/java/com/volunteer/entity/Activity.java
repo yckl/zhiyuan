@@ -132,6 +132,9 @@ public class Activity implements Serializable {
     @TableLogic
     private Integer isDeleted;
 
+    /** 签到码（6位数字） */
+    private String checkinCode;
+
     // ========== 状态常量 ==========
     public static final Integer STATUS_DRAFT = 0;
     public static final Integer STATUS_PENDING = 1;

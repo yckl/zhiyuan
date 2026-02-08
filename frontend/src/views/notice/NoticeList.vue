@@ -26,7 +26,7 @@
               </el-tag>
             </div>
             <h3 class="notice-title">{{ notice.title }}</h3>
-            <p class="notice-summary">{{ notice.summary || notice.content?.substring(0, 100) || '暂无摘要' }}</p>
+            <p class="notice-summary">{{ getSummary(notice) }}</p>
             <div class="notice-footer">
               <span class="department">
                 <el-icon><OfficeBuilding /></el-icon>
@@ -109,6 +109,22 @@ const getTypeText = (type?: string) => {
     'NEWS': '新闻资讯'
   }
   return map[type || ''] || '通知'
+}
+
+// 去除HTML标签并截取摘要
+const stripHtml = (html: string, maxLength: number = 100) => {
+  if (!html) return ''
+  const tmp = document.createElement('DIV')
+  tmp.innerHTML = html
+  let text = tmp.textContent || tmp.innerText || ''
+  text = text.trim().replace(/\s+/g, ' ')
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+}
+
+const getSummary = (notice: Notice) => {
+  if (notice.summary) return notice.summary
+  if (notice.content) return stripHtml(notice.content, 100)
+  return '暂无摘要'
 }
 
 const fetchNotices = async () => {
@@ -207,23 +223,24 @@ onMounted(fetchNotices)
   h2 {
     margin: 0 0 8px;
     font-size: 24px;
+    color: var(--el-text-color-primary);
   }
 
   .subtitle {
     margin: 0;
-    color: #999;
+    color: var(--el-text-color-secondary);
   }
 }
 
 .notice-container {
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
   padding: 32px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .notice-card {
-  background: #f9f9f9;
+  background: var(--el-fill-color-light);
   border-radius: 8px;
   padding: 20px;
   cursor: pointer;
@@ -231,13 +248,13 @@ onMounted(fetchNotices)
   border-left: 4px solid transparent;
 
   &:hover {
-    background: #f0f0f0;
+    background: var(--el-fill-color);
     transform: translateX(4px);
   }
 
   &.is-top {
-    background: linear-gradient(135deg, #ecf5ff 0%, #f0f9eb 100%);
-    border-left-color: #409eff;
+    background: linear-gradient(135deg, var(--el-color-primary-light-9) 0%, var(--el-color-success-light-9) 100%);
+    border-left-color: var(--el-color-primary);
   }
 
   .notice-header {
@@ -250,14 +267,14 @@ onMounted(fetchNotices)
     margin: 0 0 12px;
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--el-text-color-primary);
     line-height: 1.4;
   }
 
   .notice-summary {
     margin: 0 0 16px;
     font-size: 14px;
-    color: #666;
+    color: var(--el-text-color-regular);
     line-height: 1.6;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -275,14 +292,14 @@ onMounted(fetchNotices)
       display: flex;
       align-items: center;
       gap: 4px;
-      color: #999;
+      color: var(--el-text-color-secondary);
     }
 
     .read-more {
       display: flex;
       align-items: center;
       gap: 4px;
-      color: #409eff;
+      color: var(--el-color-primary);
       font-weight: 500;
 
       &:hover {
@@ -296,5 +313,10 @@ onMounted(fetchNotices)
   display: flex;
   justify-content: center;
   margin-top: 24px;
+}
+
+/* Dark mode shadow adjustment */
+html.dark .notice-container {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 </style>

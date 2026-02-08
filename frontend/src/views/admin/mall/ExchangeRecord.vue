@@ -23,6 +23,7 @@
 
       <el-table v-loading="loading" :data="orderList" border style="margin-top: 20px">
         <el-table-column prop="orderNo" label="订单编号" width="180" />
+        <el-table-column prop="volunteerId" label="志愿者ID" width="100" align="center" />
         <el-table-column prop="receiverName" label="收货人" width="100" />
         <el-table-column label="兑换商品" min-width="150" show-overflow-tooltip>
            <template #default="scope">

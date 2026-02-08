@@ -254,9 +254,15 @@ const submitReply = async () => {
 
 const handleLike = async (comment: any) => {
   try {
-    await request.post(`/comment/like/${comment.id}`)
-    comment.likeCount = (comment.likeCount || 0) + 1
-    // 简单前端状态，后端目前没存点赞记录
+    const res = await request.post(`/comment/like/${comment.id}`)
+    if (res.code === 200) {
+      // 切换点赞状态
+      const wasLiked = comment.isLiked
+      comment.isLiked = !wasLiked
+      comment.likeCount = wasLiked 
+        ? Math.max(0, (comment.likeCount || 1) - 1) 
+        : (comment.likeCount || 0) + 1
+    }
   } catch (error) {
     console.error('点赞失败:', error)
   }
@@ -274,7 +280,10 @@ const handleDelete = async (id: number) => {
 }
 
 const canDelete = (comment: any) => {
-  return comment.userId === userInfo.id
+  // 兼容多种用户ID字段
+  const currentUserId = userInfo.id || userInfo.userId || userInfo.volunteerId
+  const commentUserId = comment.userId || comment.volunteerId || comment.authorId
+  return currentUserId && commentUserId && currentUserId === commentUserId
 }
 
 const formatDate = (date: string) => {
@@ -430,6 +439,46 @@ onMounted(() => {
         }
       }
     }
+  }
+}
+
+/* 暗黑模式适配 */
+html.dark .comment-section {
+  background-color: #1e293b !important;
+  
+  .section-title {
+    color: #f1f5f9 !important;
+  }
+  
+  .comment-item {
+    border-bottom-color: #334155 !important;
+    
+    .username {
+      color: #e2e8f0 !important;
+    }
+    
+    .text {
+      color: #cbd5e1 !important;
+    }
+    
+    .time,
+    .item-actions .action {
+      color: #94a3b8 !important;
+    }
+    
+    .reply-list {
+      background-color: #0f172a !important;
+      
+      .reply-item {
+        border-bottom-color: #1e293b !important;
+      }
+    }
+  }
+  
+  :deep(.el-textarea__inner) {
+    background-color: #334155 !important;
+    color: #e2e8f0 !important;
+    border-color: #475569 !important;
   }
 }
 </style>

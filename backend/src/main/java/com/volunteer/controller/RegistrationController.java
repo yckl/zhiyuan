@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.common.Result;
 import com.volunteer.dto.RegistrationDTO;
 import com.volunteer.dto.RegistrationRequest;
+import com.volunteer.entity.Activity;
 import com.volunteer.entity.ActivityRegistration;
+import com.volunteer.mapper.ActivityMapper;
 import com.volunteer.security.SecurityUtils;
 import com.volunteer.service.RegistrationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +31,7 @@ import java.util.Map;
 public class RegistrationController {
 
     private final RegistrationService registrationService;
+    private final ActivityMapper activityMapper;
 
     /**
      * 报名活动
@@ -101,6 +105,7 @@ public class RegistrationController {
      * 获取活动的报名列表（组织者）
      */
     @GetMapping("/activity/{activityId}")
+    @PreAuthorize("hasRole('ORGANIZER') or hasRole('ADMIN')")
     @Operation(summary = "活动报名列表", description = "组织者查看活动的报名人员")
     public Result<Page<RegistrationDTO>> getActivityRegistrations(
             @PathVariable Long activityId,
@@ -108,6 +113,18 @@ public class RegistrationController {
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Integer status) {
         try {
+            // 水平越权检查：非管理员只能查看自己创建的活动的报名列表
+            Long userId = SecurityUtils.getUserId();
+            if (!SecurityUtils.isAdmin()) {
+                Activity activity = activityMapper.selectById(activityId);
+                if (activity == null) {
+                    return Result.error("活动不存在");
+                }
+                if (!activity.getOrganizerId().equals(userId)) {
+                    return Result.error("无权查看此活动的报名列表");
+                }
+            }
+
             Page<RegistrationDTO> result = registrationService.getActivityRegistrations(activityId, page, size, status);
             return Result.success(result);
         } catch (Exception e) {
@@ -191,6 +208,53 @@ public class RegistrationController {
             return Result.success("签到成功", null);
         } catch (Exception e) {
             log.error("签到失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 输码签到
+     */
+    @PostMapping("/signin/code")
+    @Operation(summary = "输码签到", description = "志愿者通过输入签到码签到")
+    public Result<Void> signInByCode(@RequestBody Map<String, String> params) {
+        String code = params.get("code");
+        String userIdStr = params.get("userId"); // 可选，如果从token获取则不需要
+
+        if (code == null || code.length() != 6) {
+            return Result.error("请输入6位签到码");
+        }
+
+        Long userId = SecurityUtils.getUserId();
+        // 如果参数里传了且是管理员等，可能支持代签？目前仅支持志愿者自己签
+
+        try {
+            ((com.volunteer.service.impl.RegistrationServiceImpl) registrationService).signInByCode(code, userId);
+            return Result.success("签到成功", null);
+        } catch (Exception e) {
+            log.error("输码签到失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/rate/{id}")
+    @Operation(summary = "评价志愿者", description = "活动结束后，主办方对志愿者进行评价")
+    public Result<Void> rateVolunteer(@PathVariable Long id, @RequestBody Map<String, Object> params) {
+        Integer rating = (Integer) params.get("rating");
+        String comment = (String) params.get("comment");
+
+        if (rating == null || rating < 1 || rating > 5) {
+            return Result.error("评分必须在1-5之间");
+        }
+
+        // 获取当前操作者ID
+        Long operatorId = SecurityUtils.getUserId();
+
+        try {
+            ((com.volunteer.service.impl.RegistrationServiceImpl) registrationService).rateVolunteer(id, rating,
+                    comment, operatorId);
+            return Result.success("评价成功", null);
+        } catch (Exception e) {
             return Result.error(e.getMessage());
         }
     }

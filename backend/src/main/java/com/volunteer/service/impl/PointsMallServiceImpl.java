@@ -5,6 +5,7 @@ import com.volunteer.entity.*;
 import com.volunteer.mapper.*;
 import com.volunteer.security.SecurityUtils;
 import com.volunteer.service.PointsMallService;
+import com.volunteer.service.SysMessageService;
 import com.volunteer.vo.BuyResultVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,7 @@ public class PointsMallServiceImpl implements PointsMallService {
     private final UserPropsMapper propsMapper;
     private final PointsRecordMapper recordMapper;
     private final VolunteerMapper volunteerMapper;
+    private final SysMessageService messageService;
 
     @Override
     public List<MallGoods> getGoodsList(String category, Integer status) {
@@ -159,6 +161,18 @@ public class PointsMallServiceImpl implements PointsMallService {
         if (goods.getGoodsType() == MallGoods.GoodsType.VIRTUAL) {
             result.setVirtualContent(goods.getVirtualContent());
         }
+
+        // 11. 发送站内信通知
+        String notifyTitle = "🎉 兑换成功通知";
+        String notifyContent = String.format(
+                "恭喜！您已成功兑换「%s」x%d，消耗 %d 积分。%s",
+                goods.getName(),
+                quantity,
+                totalCost,
+                goods.getGoodsType() == MallGoods.GoodsType.VIRTUAL
+                        ? "虚拟商品已放入您的背包。"
+                        : "实物商品请凭核销码到指定地点领取。");
+        messageService.sendMessage(userId, null, notifyTitle, notifyContent, SysMessage.TYPE_MALL);
 
         log.info("用户 {} 成功购买商品 {} x{}, 消耗积分 {}", userId, goods.getName(), quantity, totalCost);
         return result;

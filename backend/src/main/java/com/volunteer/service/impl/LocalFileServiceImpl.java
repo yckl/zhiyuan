@@ -57,7 +57,11 @@ public class LocalFileServiceImpl implements FileService {
 
         try {
             // 获取原始文件名
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+            String rawFilename = file.getOriginalFilename();
+            if (rawFilename == null) {
+                rawFilename = "unknown";
+            }
+            String originalFilename = StringUtils.cleanPath(rawFilename);
 
             // 获取文件扩展名
             String extension = "";
@@ -117,7 +121,20 @@ public class LocalFileServiceImpl implements FileService {
         try {
             // 从URL提取相对路径
             String relativePath = fileUrl.replace(accessUrl + "/", "");
-            Path filePath = this.uploadPath.resolve(relativePath);
+
+            // 安全检查：防止路径遍历攻击
+            if (relativePath.contains("..") || relativePath.contains("./") || relativePath.contains("/.")) {
+                log.warn("检测到路径遍历攻击尝试: {}", fileUrl);
+                throw new RuntimeException("非法的文件路径");
+            }
+
+            Path filePath = this.uploadPath.resolve(relativePath).normalize();
+
+            // 确保解析后的路径仍在上传目录内
+            if (!filePath.startsWith(this.uploadPath)) {
+                log.warn("检测到路径遍历攻击: {} 解析为 {}", fileUrl, filePath);
+                throw new RuntimeException("非法的文件路径");
+            }
 
             if (Files.exists(filePath)) {
                 Files.delete(filePath);

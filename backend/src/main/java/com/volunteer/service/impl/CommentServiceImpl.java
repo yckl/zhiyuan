@@ -127,6 +127,7 @@ public class CommentServiceImpl implements CommentService {
         log.info("点赞评论: id={}, userId={}", id, userId);
     }
 
+    @SuppressWarnings("null")
     private CommentDTO convertToDTO(Comment comment) {
         CommentDTO dto = new CommentDTO();
         BeanUtils.copyProperties(comment, dto);

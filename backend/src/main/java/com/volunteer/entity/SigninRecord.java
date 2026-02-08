@@ -28,6 +28,7 @@ public class SigninRecord implements Serializable {
     private Long volunteerId;
 
     /** 签到日期 */
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate signinDate;
 
     /** 连续签到天数 */

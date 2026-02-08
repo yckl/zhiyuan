@@ -41,6 +41,27 @@
       <p class="tip">每次抽奖消耗 {{ costPoints }} 积分</p>
     </div>
 
+    <!-- 抽奖记录 -->
+    <div class="records-section">
+      <h3>📜 最近手气</h3>
+      <div v-if="lotteryRecords.length > 0" class="records-list">
+        <div v-for="(record, index) in lotteryRecords" :key="index" class="record-item">
+          <span class="time">{{ new Date(record.createTime).toLocaleString() }}</span>
+          <span class="content">
+            <template v-if="record.isWon === 1">
+              抽中 <span class="prize">{{ record.prizeName }}</span>
+            </template>
+            <template v-else>
+              <span class="prize lose">未中奖</span>
+            </template>
+          </span>
+        </div>
+      </div>
+      <div v-else class="empty-records">
+        暂无抽奖记录，快来试试手气吧！
+      </div>
+    </div>
+
     <!-- 中奖弹窗 -->
     <el-dialog v-model="showResult" :title="resultTitle" width="320px" center>
       <div class="result-content">
@@ -67,7 +88,7 @@ interface Prize {
   color: string
 }
 
-const costPoints = 20
+const costPoints = 10
 const availablePoints = ref(0)
 const rotation = ref(0)
 const spinning = ref(false)
@@ -75,6 +96,7 @@ const showResult = ref(false)
 const lastPrize = ref<Prize | null>(null)
 const resultTitle = ref('')
 const resultMessage = ref('')
+const lotteryRecords = ref<any[]>([])
 
 // 默认奖品配置 - 6个均分区域
 const prizes = ref<Prize[]>([
@@ -119,6 +141,17 @@ const fetchPoints = async () => {
     }
   } catch (error) {
     console.error('获取积分失败:', error)
+  }
+}
+
+const fetchRecords = async () => {
+  try {
+    const res = await request.get('/checkin/lottery/records?limit=10')
+    if (res.code === 200) {
+      lotteryRecords.value = res.data || []
+    }
+  } catch (error) {
+    console.error('获取抽奖记录失败:', error)
   }
 }
 
@@ -169,13 +202,26 @@ const handleSpin = async () => {
             color: ''
           }
           resultTitle.value = '🎉 恭喜中奖！'
-          resultMessage.value = '奖励已自动发放到您的账户'
+          
+          // 根据奖品类型显示不同提示
+          const pType = res.data.prizeType
+          const pValue = res.data.prizeValue
+          const pName = res.data.prizeName
+          
+          if (pType === 0) {
+            resultMessage.value = `恭喜获得 ${pValue} 积分！积分已自动到账。`
+          } else if (pType === 1 || pType === 2) {
+            resultMessage.value = `恭喜获得 ${pName}！奖品已放入您的背包。`
+          } else {
+            resultMessage.value = '奖励已自动发放到您的账户'
+          }
         } else {
           lastPrize.value = { name: '谢谢参与', icon: '😊', color: '' }
           resultTitle.value = '😢 再接再厉'
-          resultMessage.value = '下次一定能中奖！'
+          resultMessage.value = '很遗憾未中奖，请下次继续努力！'
         }
         showResult.value = true
+        fetchRecords() // 刷新记录
       }, 4000)
     } else {
       ElMessage.error(res.message || '抽奖失败')
@@ -188,14 +234,24 @@ const handleSpin = async () => {
   }
 }
 
-onMounted(fetchPoints)
+onMounted(() => {
+  fetchPoints()
+  fetchRecords()
+})
 </script>
 
 <style lang="scss" scoped>
 .lucky-wheel-page {
   padding: 20px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  // 使用 CSS 变量适配暗黑模式，但保持鲜艳背景
+  background: var(--el-bg-color-page);
+  background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
+  // 暗黑模式下稍微调暗一点背景
+  html.dark & {
+    background-image: linear-gradient(135deg, #4b5c9e 0%, #5a3a7e 100%);
+  }
 }
 
 .page-header {
@@ -206,10 +262,11 @@ onMounted(fetchPoints)
     color: #fff;
     font-size: 28px;
     margin: 0 0 10px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
   }
 
   .subtitle {
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9);
     margin: 0;
   }
 }
@@ -226,16 +283,19 @@ onMounted(fetchPoints)
   border-radius: 20px;
   padding: 12px 24px;
   margin-bottom: 30px;
+  border: 1px solid rgba(255,255,255,0.1);
 
   .label {
-    color: rgba(255, 255, 255, 0.8);
+    color: #fff;
     margin-right: 12px;
+    font-weight: 500;
   }
 
   .value {
     color: #FFD700;
     font-size: 24px;
     font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 }
 
@@ -253,6 +313,12 @@ onMounted(fetchPoints)
   border: 8px solid #fff;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
   transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  
+  // 暗黑模式适配
+  html.dark & {
+    border-color: #333; // 暗色边框
+    opacity: 0.9;
+  }
 }
 
 .prize-label {
@@ -275,6 +341,7 @@ onMounted(fetchPoints)
     font-size: 32px;
     line-height: 1;
     margin-bottom: 2px;
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1));
   }
 
   .prize-name {
@@ -282,10 +349,11 @@ onMounted(fetchPoints)
     font-weight: bold;
     color: #334155;
     white-space: nowrap;
-    background: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.85);
     padding: 2px 8px;
     border-radius: 10px;
     backdrop-filter: blur(4px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
 }
 
@@ -308,6 +376,7 @@ onMounted(fetchPoints)
   box-shadow: 0 4px 20px rgba(238, 90, 36, 0.5);
   transition: transform 0.2s, box-shadow 0.2s;
   z-index: 10;
+  border: 4px solid rgba(255,255,255,0.2);
 
   &::before {
     content: '';
@@ -317,6 +386,7 @@ onMounted(fetchPoints)
     transform: translateX(-50%);
     border: 15px solid transparent;
     border-bottom: 25px solid #ff6b6b;
+    filter: drop-shadow(0 -2px 2px rgba(0,0,0,0.1));
   }
 
   &:hover:not(.disabled) {
@@ -327,6 +397,11 @@ onMounted(fetchPoints)
   &.disabled {
     cursor: not-allowed;
     opacity: 0.7;
+    background: #999;
+    box-shadow: none;
+    &::before {
+      border-bottom-color: #999;
+    }
   }
 }
 
@@ -334,6 +409,76 @@ onMounted(fetchPoints)
   margin-top: 24px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
+}
+
+.records-section {
+  width: 100%;
+  max-width: 500px;
+  margin: 40px auto 0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  
+  html.dark & {
+    background: rgba(30, 30, 30, 0.9);
+  }
+
+  h3 {
+    margin: 0 0 16px;
+    font-size: 18px;
+    color: #333;
+    text-align: center;
+    
+    html.dark & {
+      color: #fff;
+    }
+  }
+
+  .records-list {
+    max-height: 200px;
+    overflow-y: auto;
+    
+    .record-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      font-size: 14px;
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      html.dark & {
+        border-bottom-color: rgba(255,255,255,0.1);
+      }
+
+      .time {
+        color: #666;
+        html.dark & { color: #999; }
+      }
+
+      .content {
+        .prize {
+          font-weight: bold;
+          color: var(--el-color-primary);
+          &.lose {
+            color: #999;
+            font-weight: normal;
+          }
+        }
+      }
+    }
+  }
+  
+  .empty-records {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+    font-size: 14px;
+  }
 }
 
 .result-content {
@@ -349,13 +494,13 @@ onMounted(fetchPoints)
   .result-name {
     font-size: 24px;
     font-weight: bold;
-    color: #333;
+    color: var(--el-text-color-primary); // 使用CSS变量
     margin: 0 0 12px;
   }
 
   .result-tip {
     font-size: 14px;
-    color: #666;
+    color: var(--el-text-color-secondary); // 使用CSS变量
     margin: 0;
   }
 }

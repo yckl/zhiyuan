@@ -18,6 +18,9 @@ public class ActivityRequest {
     @Schema(description = "活动ID（更新时必填）")
     private Long id;
 
+    @Schema(description = "活动状态")
+    private Integer status;
+
     @NotBlank(message = "活动标题不能为空")
     @Schema(description = "活动标题")
     private String title;

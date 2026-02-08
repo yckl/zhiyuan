@@ -5,14 +5,58 @@
   padding: 0;
 }
 
+// ================== CSS变量定义（解决硬编码颜色问题） ==================
+:root {
+  // 文字颜色
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-placeholder: #c0c4cc;
+
+  // 背景颜色
+  --bg-page: #f5f7fa;
+  --bg-card: #ffffff;
+  --bg-hover: #f5f7fa;
+  --bg-active: #ecf5ff;
+
+  // 边框颜色
+  --border-color: #e4e7ed;
+  --border-light: #ebeef5;
+
+  // 阴影
+  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  --shadow-dark: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+}
+
+html.dark {
+  // 暗色模式文字颜色
+  --text-primary: #e5eaf3;
+  --text-secondary: #a3a6ad;
+  --text-muted: #73767a;
+  --text-placeholder: #5a5e66;
+
+  // 暗色模式背景
+  --bg-page: #141414;
+  --bg-card: #1d1e1f;
+  --bg-hover: #262727;
+  --bg-active: #1a2030;
+
+  // 暗色模式边框
+  --border-color: #4c4d4f;
+  --border-light: #363637;
+
+  // 暗色模式阴影
+  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+}
+
 html,
 body {
   height: 100%;
   font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
   font-size: 14px;
-  color: #333;
-  background-color: #f5f7fa;
-  transition: background-color 0.3s, color 0.3s; // 增加平滑过渡
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 #app {
@@ -53,6 +97,76 @@ html.dark {
   .el-textarea__inner {
     background-color: #2b2b2c !important;
     box-shadow: 0 0 0 1px #4C4D4F inset !important;
+  }
+
+  // 5. 全局文字颜色修复（覆盖硬编码的 #333, #666, #999）
+  .title,
+  .name,
+  .label,
+  .info-label,
+  .course-title,
+  .section-title,
+  .card-title,
+  .exam-title,
+  .user-name,
+  .activity-name {
+    color: var(--text-primary) !important;
+  }
+
+  .description,
+  .subtitle,
+  .content,
+  .summary,
+  .course-desc,
+  .info-value,
+  .detail-text {
+    color: var(--text-secondary) !important;
+  }
+
+  .hint,
+  .tip,
+  .meta,
+  .count,
+  .time,
+  .date,
+  .course-meta,
+  .info-meta,
+  .sub-info {
+    color: var(--text-muted) !important;
+  }
+
+  // 6. 表格和列表项
+  .el-table {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+
+    th,
+    td {
+      background-color: var(--bg-card) !important;
+    }
+
+    tr:hover>td {
+      background-color: var(--bg-hover) !important;
+    }
+  }
+
+  // 7. 统计卡片
+  .stat-card,
+  .info-card,
+  .data-card {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  // 8. 分页器
+  .el-pagination {
+    color: var(--text-primary) !important;
+
+    button,
+    .el-pager li {
+      background-color: var(--bg-card) !important;
+      color: var(--text-primary) !important;
+    }
   }
 }
 
@@ -175,4 +289,118 @@ a {
 // 卡片阴影
 .card-shadow {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+// ================== 全站响应式适配 ==================
+
+// 表格横向滚动容器
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+// 平板端适配 (< 992px)
+@media only screen and (max-width: 992px) {
+  .el-dialog {
+    width: 80% !important;
+    max-width: 80% !important;
+  }
+  
+  .el-card__body {
+    padding: 15px !important;
+  }
+  
+  h1 { font-size: 22px !important; }
+  h2 { font-size: 18px !important; }
+  h3 { font-size: 16px !important; }
+}
+
+// 手机端适配 (< 768px)
+@media only screen and (max-width: 768px) {
+  // 弹窗全屏化
+  .el-dialog {
+    width: 90% !important;
+    max-width: 90% !important;
+    margin-top: 10vh !important;
+  }
+  
+  .el-dialog__body {
+    padding: 15px !important;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  
+  // 卡片内边距减小
+  .el-card__body {
+    padding: 12px !important;
+  }
+  
+  // 标题字号调整
+  h1, h2 { font-size: 18px !important; }
+  h3, h4 { font-size: 16px !important; }
+  h5, h6 { font-size: 14px !important; }
+  
+  // 表格强制滚动
+  .el-table {
+    max-width: 100%;
+    
+    &__body-wrapper {
+      overflow-x: auto !important;
+    }
+  }
+  
+  // 表单适配
+  .el-form-item__label {
+    font-size: 13px !important;
+  }
+  
+  .el-input__inner {
+    font-size: 14px !important;
+  }
+  
+  // 按钮组适配
+  .el-button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  // 分页器紧凑模式
+  .el-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    
+    .el-pagination__sizes,
+    .el-pagination__jump {
+      display: none !important;
+    }
+  }
+  
+  // 隐藏不重要元素
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+// 超小屏幕 (< 400px)
+@media only screen and (max-width: 400px) {
+  .el-dialog {
+    width: 95% !important;
+    margin-top: 5vh !important;
+  }
+  
+  .el-card__body {
+    padding: 10px !important;
+  }
+  
+  .el-button {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+  
+  .el-form-item {
+    margin-bottom: 12px !important;
+  }
 }

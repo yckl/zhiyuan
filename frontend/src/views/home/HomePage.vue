@@ -3,7 +3,25 @@
     <!-- 顶部大屏轮播图 -->
     <div class="carousel-container">
       <el-carousel :interval="5000" height="400px" indicator-position="outside">
-        <el-carousel-item v-for="item in featuredActivities" :key="item.id">
+        <!-- 管理员配置的Banner轮播图 -->
+        <el-carousel-item v-for="item in banners" :key="'banner-' + item.id">
+          <div class="carousel-item" @click="item.link && router.push(item.link)">
+            <el-image :src="item.image" fit="cover" class="carousel-image">
+              <template #error>
+                <div class="image-placeholder">
+                  <el-icon :size="60"><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            <div class="carousel-overlay" v-if="item.title">
+              <div class="carousel-text">
+                <h2>{{ item.title }}</h2>
+              </div>
+            </div>
+          </div>
+        </el-carousel-item>
+        <!-- 精选活动轮播 (作为后备) -->
+        <el-carousel-item v-for="item in featuredActivities" :key="'activity-' + item.id" v-if="banners.length === 0">
           <div class="carousel-item" @click="router.push(`/activity/${item.id}`)">
             <el-image :src="item.coverImage || '/default-cover.jpg'" fit="cover" class="carousel-image">
               <template #error>
@@ -22,7 +40,8 @@
             </div>
           </div>
         </el-carousel-item>
-        <el-carousel-item v-if="featuredActivities.length === 0">
+        <!-- 默认欢迎页 -->
+        <el-carousel-item v-if="banners.length === 0 && featuredActivities.length === 0">
           <div class="carousel-item welcome-slide">
             <div class="welcome-text">
               <h1>欢迎来到校园志愿者系统 👋</h1>
@@ -68,30 +87,7 @@
 
       <el-row :gutter="24" v-loading="loadingActivities">
         <el-col v-for="item in activities" :key="item.id" :xs="24" :sm="12" :lg="8">
-          <el-card class="activity-card" :body-style="{ padding: '0px' }" shadow="hover" @click="router.push(`/activity/${item.id}`)">
-            <div class="activity-cover-wrapper">
-              <el-image :src="item.coverImage || '/default-cover.jpg'" class="activity-cover" fit="cover" lazy />
-              <div class="activity-status">
-                <el-tag :type="getStatusType(item.status)" size="small" effect="dark">{{ item.statusName || '报名中' }}</el-tag>
-              </div>
-            </div>
-            <div class="activity-content">
-              <div class="category-info">
-                <el-tag size="small" type="info" effect="plain">{{ item.categoryName || '未分类' }}</el-tag>
-              </div>
-              <h3 class="activity-title">{{ item.title }}</h3>
-              <div class="activity-footer">
-                <div class="meta-item">
-                  <el-icon><Location /></el-icon>
-                  <span>{{ item.location }}</span>
-                </div>
-                <div class="meta-item">
-                  <el-icon><Medal /></el-icon>
-                  <span>{{ item.pointsReward }}积分</span>
-                </div>
-              </div>
-            </div>
-          </el-card>
+          <ActivityCard :activity="item" />
         </el-col>
       </el-row>
       <el-empty v-if="!loadingActivities && activities.length === 0" description="暂无热门活动" />
@@ -108,29 +104,26 @@ import {
   Shop,
   Histogram,
   Opportunity,
-  Clock,
-  Location,
   ArrowRight,
-  Picture,
-  Medal
+  Picture
 } from '@element-plus/icons-vue'
+import ActivityCard from '@/components/ActivityCard.vue'
 
 const router = useRouter()
 
+const banners = ref<any[]>([])
 const featuredActivities = ref<any[]>([])
 const activities = ref<any[]>([])
 const loadingActivities = ref(false)
 
-const getStatusType = (status: number) => {
-  const types: Record<number, string> = {
-    0: 'info',
-    1: 'warning',
-    2: 'success',
-    3: 'primary',
-    4: 'info',
-    5: 'danger'
+// 获取管理员配置的轮播图
+const fetchBanners = async () => {
+  try {
+    const res = await request.get('/banner/list')
+    banners.value = res.data || []
+  } catch (error) {
+    console.error('获取轮播图失败:', error)
   }
-  return types[status] || 'info'
 }
 
 const fetchFeaturedActivities = async () => {
@@ -156,6 +149,7 @@ const fetchActivities = async () => {
 }
 
 onMounted(() => {
+  fetchBanners()
   fetchFeaturedActivities()
   fetchActivities()
 })
@@ -388,6 +382,99 @@ onMounted(() => {
     justify-content: center;
     background: #f5f7fa;
     color: #c0c4cc;
+  }
+}
+
+/* 移动端响应式适配 */
+@media (max-width: 768px) {
+  .home-page {
+    .carousel-container {
+      :deep(.el-carousel) {
+        height: 200px !important;
+      }
+      
+      .carousel-item {
+        .carousel-image {
+          height: 200px;
+        }
+      }
+    }
+    
+    /* 快捷入口 2x2 田字格布局 */
+    .quick-links {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+      padding: 0 8px;
+      
+      .link-item {
+        padding: 16px 12px;
+        border-radius: 12px;
+        
+        .link-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          font-size: 22px;
+        }
+        
+        span {
+          font-size: 13px;
+        }
+      }
+    }
+    
+    .section-container {
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 16px;
+        
+        .title-area {
+          .main-title {
+            font-size: 18px;
+          }
+          .sub-title {
+            font-size: 12px;
+          }
+        }
+      }
+      
+      .el-row {
+        margin: 0 -8px !important;
+        
+        .el-col {
+          padding: 0 8px !important;
+        }
+      }
+    }
+  }
+}
+
+/* 超小屏幕 (iPhone SE 等) */
+@media (max-width: 400px) {
+  .home-page {
+    .carousel-container {
+      :deep(.el-carousel) {
+        height: 160px !important;
+      }
+    }
+    
+    .section-container {
+      padding: 0 12px;
+      
+      .section-header {
+        .title-area {
+          .main-title {
+            font-size: 16px;
+          }
+          .sub-title {
+            font-size: 11px;
+          }
+        }
+      }
+    }
   }
 }
 </style>

@@ -1,12 +1,15 @@
 <template>
-  <el-container class="main-layout">
-    <el-aside :width="isCollapsed ? '72px' : '240px'" class="sidebar">
+  <el-container class="main-layout" :class="{ 'is-mobile': isMobile }">
+    <!-- 移动端遮罩层 -->
+    <div v-if="isMobile && !isCollapsed" class="mobile-overlay" @click="isCollapsed = true"></div>
+    
+    <el-aside :width="sidebarWidth" class="sidebar" :class="{ 'sidebar-mobile': isMobile, 'sidebar-hidden': isMobile && isCollapsed }">
       <div class="sidebar-wrapper">
-        <div class="logo-section" @click="router.push('/')">
+        <div class="logo-section" @click="handleLogoClick">
           <div class="logo-icon-box">
             <el-icon :size="28"><Aim /></el-icon>
           </div>
-          <span v-show="!isCollapsed" class="logo-text">志愿者系统</span>
+          <span v-show="!isCollapsed || isMobile" class="logo-text">志愿者系统</span>
         </div>
 
         <el-menu
@@ -65,6 +68,11 @@
             <el-menu-item index="/experience" class="core-group">
               <el-icon><Document /></el-icon>
               <template #title>心得分享</template>
+            </el-menu-item>
+
+            <el-menu-item index="/feedback" class="core-group">
+              <el-icon><ChatDotRound /></el-icon>
+              <template #title>问题反馈</template>
             </el-menu-item>
 
             <el-sub-menu index="my" class="profile-group">
@@ -133,10 +141,11 @@
               <component :is="isCollapsed ? Expand : Fold" />
             </el-icon>
           </div>
-          <el-breadcrumb separator="/">
+          <el-breadcrumb v-if="!isMobile" separator="/">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
           </el-breadcrumb>
+          <span v-else class="mobile-page-title">{{ route.meta.title || '首页' }}</span>
         </div>
 
         <div class="header-right">
@@ -205,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
@@ -223,8 +232,39 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-const isCollapsed = ref(false)
+// 响应式状态
+const windowWidth = ref(window.innerWidth)
+const MOBILE_BREAKPOINT = 768
+const TABLET_BREAKPOINT = 992
+
+const isMobile = computed(() => windowWidth.value < MOBILE_BREAKPOINT)
+const isTablet = computed(() => windowWidth.value >= MOBILE_BREAKPOINT && windowWidth.value < TABLET_BREAKPOINT)
+
+const isCollapsed = ref(window.innerWidth < MOBILE_BREAKPOINT)
 const isDark = ref(localStorage.getItem('theme-mode') === 'dark' || document.documentElement.classList.contains('dark'))
+
+// 侧边栏宽度计算
+const sidebarWidth = computed(() => {
+  if (isMobile.value) return '240px' // 移动端固定宽度（抽屉模式）
+  return isCollapsed.value ? '72px' : '240px'
+})
+
+// 处理窗口大小变化
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+  // 切换到移动端时自动折叠侧边栏
+  if (windowWidth.value < MOBILE_BREAKPOINT) {
+    isCollapsed.value = true
+  }
+}
+
+// Logo点击处理（移动端关闭侧边栏后跳转）
+const handleLogoClick = () => {
+  if (isMobile.value) {
+    isCollapsed.value = true
+  }
+  router.push('/')
+}
 
 const activeMenu = computed(() => route.path)
 const userInfo = computed(() => userStore.userInfo)
@@ -270,12 +310,26 @@ const handleThemeChange = (e: any) => {
 }
 
 onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  handleResize() // 初始化
+  
   gsap.from('.header', {
     y: -20,
     opacity: 1,
     duration: 0.8,
     ease: 'power3.out'
   })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
+// 路由变化时自动关闭移动端侧边栏
+watch(() => route.path, () => {
+  if (isMobile.value) {
+    isCollapsed.value = true
+  }
 })
 
 const handleCommand = (command: string) => {
@@ -319,6 +373,24 @@ html.dark .main-layout {
     display: flex;
     flex-direction: column;
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* 自定义滚动条样式 */
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+    }
   }
 
   .logo-section {
@@ -620,5 +692,151 @@ html.dark .footer {
 .page-fade-leave-to {
   opacity: 0;
   transform: translateY(-15px);
+}
+
+/* 移动端遮罩层 */
+.mobile-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 移动端侧边栏样式 */
+.sidebar-mobile {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 1001;
+  transform: translateX(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-hidden {
+  transform: translateX(-100%) !important;
+}
+
+/* 移动端页面标题 */
+.mobile-page-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #334155;
+}
+
+html.dark .mobile-page-title {
+  color: #e2e8f0;
+}
+
+/* 响应式适配 - 平板端 */
+@media (max-width: 992px) {
+  .main-content {
+    padding: 16px !important;
+  }
+  
+  .header {
+    padding: 0 16px;
+    
+    .header-right {
+      gap: 16px;
+      
+      .role-badge {
+        display: none; /* 平板上隐藏角色标签 */
+      }
+    }
+  }
+}
+
+/* 响应式适配 - 手机端 */
+@media (max-width: 768px) {
+  .main-layout.is-mobile {
+    .main-container {
+      margin-left: 0 !important;
+    }
+  }
+  
+  .header {
+    height: 56px;
+    padding: 0 12px;
+    
+    .header-left {
+      gap: 12px;
+      
+      .collapse-btn-wrapper {
+        width: 40px;
+        height: 40px;
+      }
+    }
+    
+    .header-right {
+      gap: 8px;
+      
+      .role-badge-wrapper {
+        display: none;
+      }
+      
+      .user-info {
+        padding: 4px 8px;
+        gap: 8px;
+        
+        .name-box {
+          display: none; /* 手机上隐藏用户名 */
+        }
+        
+        .arrow-icon {
+          display: none;
+        }
+      }
+    }
+  }
+  
+  .main-content {
+    padding: 12px !important;
+    
+    .content-wrapper {
+      max-width: 100%;
+    }
+  }
+  
+  .footer {
+    height: 40px !important;
+    
+    .footer-content {
+      font-size: 10px;
+      gap: 6px;
+    }
+  }
+}
+
+/* 超小屏幕 - iPhone SE 等 */
+@media (max-width: 400px) {
+  .header {
+    padding: 0 8px;
+    
+    .header-left {
+      gap: 8px;
+    }
+    
+    .header-right {
+      gap: 4px;
+    }
+  }
+  
+  .main-content {
+    padding: 8px !important;
+  }
+  
+  .mobile-page-title {
+    font-size: 14px;
+  }
 }
 </style>

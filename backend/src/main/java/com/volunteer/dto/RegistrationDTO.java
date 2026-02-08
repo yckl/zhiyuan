@@ -70,6 +70,12 @@ public class RegistrationDTO {
     @Schema(description = "取消原因")
     private String cancelReason;
 
+    @Schema(description = "评分")
+    private Integer rating;
+
+    @Schema(description = "评价评语")
+    private String ratingComment;
+
     @Schema(description = "报名时间")
     private LocalDateTime createTime;
 }

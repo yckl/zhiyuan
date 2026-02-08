@@ -1,7 +1,6 @@
 package com.volunteer.service;
 
 import com.volunteer.entity.Course;
-import com.volunteer.entity.CourseExamRecord;
 import com.volunteer.vo.ExamPaperVO;
 import com.volunteer.vo.ExamResultVO;
 import com.volunteer.vo.ExamSubmitDTO;

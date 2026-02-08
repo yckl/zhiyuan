@@ -27,6 +27,10 @@
             <span class="stat-value">{{ availablePoints }}</span>
             <span class="stat-label">当前积分</span>
           </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ makeupCardCount }}</span>
+            <span class="stat-label">补签卡</span>
+          </div>
         </div>
 
         <div class="reward-info">
@@ -88,7 +92,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
@@ -140,7 +144,20 @@ const fetchCalendar = async () => {
       params: { year, month }
     })
     if (res.code === 200 && res.data) {
-      signedDates.value = res.data.map((item: any) => item.signinDate)
+      // 确保日期格式统一
+      signedDates.value = res.data.map((item: any) => {
+        const date = item.signinDate
+        // 如果是数组 [2026, 2, 8]
+        if (Array.isArray(date)) {
+          const y = date[0]
+          const m = String(date[1]).padStart(2, '0')
+          const d = String(date[2]).padStart(2, '0')
+          return `${y}-${m}-${d}`
+        }
+        // 如果是字符串，直接返回（假设是 yyyy-MM-dd）
+        return String(date)
+      })
+      console.log('Signed dates:', signedDates.value)
     }
   } catch (error) {
     console.error('获取签到日历失败:', error)

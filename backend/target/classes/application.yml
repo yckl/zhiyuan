@@ -4,6 +4,9 @@ server:
     context-path: /api
 
 spring:
+  # 解决CORS 404问题：允许分发OPTIONS请求
+  mvc:
+    dispatch-options-request: true
   application:
     name: volunteer-system
 

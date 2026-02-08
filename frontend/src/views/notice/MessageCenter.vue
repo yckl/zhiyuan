@@ -51,7 +51,7 @@
                 <span class="msg-title">{{ msg.title }}</span>
                 <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
               </div>
-              <div class="msg-body" v-html="highlightKeywords(msg.content)"></div>
+              <div class="msg-body">{{ formatContent(msg.content) }}</div>
               
               <!-- Action Buttons (Conditional) -->
               <div class="msg-actions" v-if="hasAction(msg)">
@@ -69,9 +69,9 @@
                   type="success" 
                   link 
                   size="small"
-                  @click.stop="router.push('/mall/checkin')"
+                  @click.stop="router.push('/my-activities')"
                 >
-                  立即签到 <el-icon><ArrowRight /></el-icon>
+                  前往签到 <el-icon><ArrowRight /></el-icon>
                 </el-button>
               </div>
             </div>
@@ -140,12 +140,22 @@ const formatTime = (time: string) => {
   return dayjs(time).fromNow()
 }
 
-// Helper: Highlight
-const highlightKeywords = (content: string) => {
-  if (!content) return ''
-  // 简单的高亮逻辑，实际可以更复杂
-  return content
-    .replace(/(地点|时间|领取码)：(.*?)(，|。|\s|$)/g, '<b>$1：$2</b>$3')
+// Helper: Strip HTML and truncate for list view
+const stripHtml = (html: string, maxLength: number = 80) => {
+  if (!html) return ''
+  // Create temp element to extract text
+  const tmp = document.createElement('DIV')
+  tmp.innerHTML = html
+  let text = tmp.textContent || tmp.innerText || ''
+  text = text.trim().replace(/\s+/g, ' ') // Normalize whitespace
+  if (text.length > maxLength) {
+    return text.substring(0, maxLength) + '...'
+  }
+  return text
+}
+
+const formatContent = (content: string) => {
+  return stripHtml(content, 100)
 }
 
 // Helper: Check Actions
@@ -406,9 +416,27 @@ onMounted(() => {
 }
 
 /* Dark Mode Adaptation */
-:deep(html.dark) {
-  .message-card.is-unread {
-    background-color: #1d1e1f;
+html.dark {
+  .message-card {
+    background-color: var(--el-bg-color-overlay);
+    
+    &.is-unread {
+      background-color: #252526;
+    }
+  }
+  
+  .icon-wrapper {
+    &.icon-mall {
+      background: rgba(230, 162, 60, 0.15);
+    }
+    
+    &.icon-activity {
+      background: rgba(64, 158, 255, 0.15);
+    }
+    
+    &.icon-system {
+      background: rgba(144, 147, 153, 0.15);
+    }
   }
 }
 </style>

@@ -148,6 +148,14 @@ const routes: RouteRecordRaw[] = [
                 ]
             },
 
+            // ================== 新增：问题反馈 ==================
+            {
+                path: 'feedback',
+                name: 'Feedback',
+                component: () => import('@/views/feedback/FeedbackPage.vue'),
+                meta: { title: '问题反馈', requiresAuth: true }
+            },
+
             // ================== 新增：培训学院 ==================
             {
                 path: 'training',

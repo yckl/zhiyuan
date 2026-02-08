@@ -54,7 +54,7 @@
       </el-form>
       <template #footer>
         <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleCreate">发布</el-button>
+        <el-button type="primary" :loading="submitting" :disabled="submitting" @click="handleCreate">发布</el-button>
       </template>
     </el-dialog>
   </div>

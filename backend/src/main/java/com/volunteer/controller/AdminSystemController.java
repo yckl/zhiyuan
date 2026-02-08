@@ -1,13 +1,9 @@
 package com.volunteer.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.common.Result;
 import com.volunteer.entity.SysConfig;
-import com.volunteer.entity.SysLog;
 import com.volunteer.mapper.SysConfigMapper;
-import com.volunteer.mapper.SysLogMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +12,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +28,6 @@ import java.util.Map;
 public class AdminSystemController {
 
     private final SysConfigMapper configMapper;
-    private final SysLogMapper logMapper;
 
     @GetMapping("/config")
     @Operation(summary = "系统配置")
@@ -79,29 +73,4 @@ public class AdminSystemController {
         return Result.success("更新成功");
     }
 
-    @GetMapping("/logs")
-    @Operation(summary = "操作日志")
-    public Result<IPage<SysLog>> getLogs(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String operator,
-            @RequestParam(required = false) String startTime,
-            @RequestParam(required = false) String endTime) {
-
-        Page<SysLog> pageParam = new Page<>(page, size);
-        LambdaQueryWrapper<SysLog> query = new LambdaQueryWrapper<SysLog>()
-                .orderByDesc(SysLog::getCreateTime);
-
-        if (operator != null && !operator.isBlank()) {
-            query.like(SysLog::getOperatorName, operator);
-        }
-        if (startTime != null && !startTime.isBlank()) {
-            query.ge(SysLog::getCreateTime, LocalDateTime.parse(startTime + "T00:00:00"));
-        }
-        if (endTime != null && !endTime.isBlank()) {
-            query.le(SysLog::getCreateTime, LocalDateTime.parse(endTime + "T23:59:59"));
-        }
-
-        return Result.success(logMapper.selectPage(pageParam, query));
-    }
 }

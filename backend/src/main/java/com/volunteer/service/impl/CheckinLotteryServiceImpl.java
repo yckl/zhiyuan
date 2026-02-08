@@ -163,14 +163,23 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
             return SigninResultVO.fail("补签卡不足");
         }
 
-        // 消耗补签卡
-        if (makeupCard.getQuantity() == 1) {
-            makeupCard.setIsDeleted(1);
-        } else {
-            makeupCard.setQuantity(makeupCard.getQuantity() - 1);
+        // 消耗补签卡 - 使用更健壮的逻辑
+        // 直接在数据库层面扣减库存，避免并发问题
+        int rows = propsMapper.decreaseQuantity(makeupCard.getId(), 1);
+        if (rows == 0) {
+            // 如果扣减失败（可能因为库存不足），抛出异常回滚事务
+            throw new RuntimeException("补签卡扣减失败，请重试");
         }
-        makeupCard.setUpdateTime(LocalDateTime.now());
-        propsMapper.updateById(makeupCard);
+
+        // 如果扣减后库存为0，将其标记为删除（可选，视业务逻辑而定）
+        // 这里为了简单，我们重新查询一次确认
+        UserProps updatedProps = propsMapper.selectById(makeupCard.getId());
+        if (updatedProps != null && updatedProps.getQuantity() <= 0) {
+            updatedProps.setIsDeleted(1);
+            propsMapper.updateById(updatedProps);
+        }
+
+        log.info("用户 {} 消耗补签卡成功, propsId: {}", volunteer, makeupCard.getId());
 
         // 计算连续天数（比较复杂，这里简化处理：基于前一天的连续天数+1，并可能影响后一天的连续天数）
         // 为了简单，我们只从前一天获取
@@ -210,6 +219,8 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
+
+        log.info("查询签到日历: 用户 {}, 年月 {}-{}", volunteer.getId(), year, month);
 
         return signinMapper.selectList(
                 new LambdaQueryWrapper<SigninRecord>()
@@ -280,6 +291,18 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
         record.setIsDeleted(0);
 
         if (wonPrize != null) {
+            // 特殊处理：如果是"谢谢参与"，视为未中奖，不发放奖励
+            if (wonPrize.getName() != null && (wonPrize.getName().contains("谢谢") || wonPrize.getName().contains("遗憾")
+                    || wonPrize.getName().contains("再接再厉"))) {
+                // 记录未中奖（虽然逻辑上是选中了这个奖品，但业务上视为未中奖）
+                record.setIsWon(0);
+                record.setStatus(1);
+                // 确保不调用 awardPrize
+                lotteryRecordMapper.insert(record);
+                log.info("用户 {} 抽中'{}'，视为未中奖", volunteer.getId(), wonPrize.getName());
+                return LotteryResultVO.lose(volunteer.getAvailablePoints());
+            }
+
             record.setPrizeId(wonPrize.getId());
             record.setPrizeName(wonPrize.getName());
             record.setPrizeType(wonPrize.getPrizeType());
@@ -287,7 +310,7 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
             record.setIsWon(1);
             record.setStatus(1); // 自动领取
 
-            // 发放奖励
+            // 发放奖励 (必须调用)
             awardPrize(volunteer, wonPrize);
 
             // 更新中奖次数
@@ -296,8 +319,13 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
             lotteryRecordMapper.insert(record);
 
             int prizeIndex = prizes.indexOf(wonPrize);
-            log.info("用户 {} 抽奖中奖: {}, 位置{}", volunteer.getId(), wonPrize.getName(), prizeIndex);
-            return LotteryResultVO.win(wonPrize, prizeIndex, volunteer.getAvailablePoints());
+            log.info("用户 {} 抽奖中奖: {}, 位置{}, 类型{}", volunteer.getId(), wonPrize.getName(), prizeIndex,
+                    wonPrize.getPrizeType());
+
+            // 确保返回正确的 prizeType 和 prizeValue 给前端
+            LotteryResultVO result = LotteryResultVO.win(wonPrize, prizeIndex, volunteer.getAvailablePoints());
+            // result.setPrizeType 已在 win 方法中设置
+            return result;
         } else {
             record.setIsWon(0);
             record.setStatus(1);
@@ -357,7 +385,31 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
      * 发放奖励
      */
     private void awardPrize(Volunteer volunteer, LotteryPrize prize) {
-        switch (prize.getPrizeType()) {
+        if (prize.getPrizeType() == null) {
+            log.error("奖品类型为空: {}", prize.getId());
+            return;
+        }
+
+        // 容错处理：如果奖品名称包含"积分"，强制视为积分类型
+        // 解决数据库可能存在的配置错误（例如50积分被配成了实物或虚拟道具）
+        int effectiveType = prize.getPrizeType();
+        if (prize.getName() != null && prize.getName().contains("积分")) {
+            effectiveType = LotteryPrize.PrizeType.POINTS;
+            // 如果 prizeValue 为 0，尝试从名称解析
+            if (prize.getPrizeValue() == null || prize.getPrizeValue() == 0) {
+                try {
+                    String numStr = prize.getName().replaceAll("[^0-9]", "");
+                    if (!numStr.isEmpty()) {
+                        prize.setPrizeValue(Integer.parseInt(numStr));
+                        log.warn("从奖品名称 '{}' 解析出积分值: {}", prize.getName(), prize.getPrizeValue());
+                    }
+                } catch (Exception e) {
+                    log.error("解析积分值失败", e);
+                }
+            }
+        }
+
+        switch (effectiveType) {
             case LotteryPrize.PrizeType.POINTS -> {
                 // 积分奖励
                 addPoints(volunteer, prize.getPrizeValue(), "抽奖获得积分");
@@ -369,6 +421,9 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
             case LotteryPrize.PrizeType.PHYSICAL -> {
                 // 实物奖励 - 记录待领取即可
                 log.info("用户 {} 获得实物奖品: {}", volunteer.getId(), prize.getName());
+            }
+            default -> {
+                log.warn("未知的奖品类型: {}", prize.getPrizeType());
             }
         }
     }
@@ -428,13 +483,26 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
      * 增加用户积分
      */
     private void addPoints(Volunteer volunteer, int points, String description) {
-        int newBalance = (volunteer.getAvailablePoints() != null ? volunteer.getAvailablePoints() : 0) + points;
+        log.info("准备增加积分. 用户ID: {}, 增加: {}, 描述: {}", volunteer.getId(), points, description);
+
+        if (points <= 0) {
+            log.warn("增加积分为0或负数，跳过: {}", points);
+            return;
+        }
+
+        int oldBalance = volunteer.getAvailablePoints() != null ? volunteer.getAvailablePoints() : 0;
+        int newBalance = oldBalance + points;
         int newTotal = (volunteer.getTotalPoints() != null ? volunteer.getTotalPoints() : 0) + points;
 
+        // 更新内存对象
         volunteer.setAvailablePoints(newBalance);
         volunteer.setTotalPoints(newTotal);
         volunteer.setUpdateTime(LocalDateTime.now());
+
+        // 更新数据库
         volunteerMapper.updateById(volunteer);
+
+        log.info("积分增加成功. 旧余额: {}, 新余额: {}", oldBalance, newBalance);
 
         // 记录积分流水
         PointsRecord record = new PointsRecord();
@@ -442,6 +510,11 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
         record.setPoints(points);
         record.setBalance(newBalance);
         record.setType(PointsRecord.Type.SIGNIN);
+        if (description.contains("抽奖")) {
+            record.setType(PointsRecord.Type.LOTTERY);
+        } else if (description.contains("补签")) {
+            record.setType(PointsRecord.Type.SIGNIN); // 补签也算签到
+        }
         record.setDescription(description);
         record.setCreateTime(LocalDateTime.now());
         record.setUpdateTime(LocalDateTime.now());

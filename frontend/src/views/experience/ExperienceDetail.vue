@@ -404,4 +404,40 @@ onMounted(() => {
     }
   }
 }
+
+/* 暗黑模式适配 */
+html.dark .experience-detail-page {
+  background-color: #0f172a !important;
+  
+  .main-card,
+  .related-card {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  
+  .exp-title {
+    color: #f1f5f9 !important;
+  }
+  
+  .author-name {
+    color: #e2e8f0 !important;
+  }
+  
+  .publish-time,
+  .stat-item {
+    color: #94a3b8 !important;
+  }
+  
+  .exp-content {
+    color: #cbd5e1 !important;
+  }
+  
+  .related-item {
+    border-bottom-color: #334155 !important;
+    
+    h4 {
+      color: #f1f5f9 !important;
+    }
+  }
+}
 </style>

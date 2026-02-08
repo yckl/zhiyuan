@@ -2,7 +2,7 @@
   <div class="training-index">
     <!-- 1. 学习数据概览 -->
     <el-row :gutter="20" class="stats-row" v-loading="loading">
-      <el-col :span="6" v-for="stat in stats" :key="stat.label">
+      <el-col :xs="12" :sm="12" :md="6" :lg="6" v-for="stat in stats" :key="stat.label">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <el-icon :size="40" :style="{ color: stat.color }">
@@ -43,7 +43,7 @@
 
     <el-row :gutter="20" v-loading="loading">
       <!-- 3. 必修课程推荐 -->
-      <el-col :span="18">
+      <el-col :xs="24" :sm="24" :md="18" :lg="18">
         <div class="section-container">
           <div class="section-header">
             <h3 class="section-title">🎓 必修课程 (岗前培训)</h3>
@@ -52,7 +52,7 @@
             </el-link>
           </div>
           <el-row :gutter="20">
-            <el-col :span="6" v-for="course in mandatoryCourses" :key="course.id">
+            <el-col :xs="24" :sm="12" :md="8" :lg="6" v-for="course in mandatoryCourses" :key="course.id">
               <el-card shadow="hover" :body-style="{ padding: '0px' }" class="course-card">
                 <el-image :src="course.coverImage" class="course-cover" fit="cover">
                   <template #error>
@@ -75,7 +75,7 @@
       </el-col>
 
       <!-- 4. 待考提醒 -->
-      <el-col :span="6">
+      <el-col :xs="24" :sm="24" :md="6" :lg="6">
         <div class="section-container">
           <h3 class="section-title">待考提醒</h3>
           <div class="exam-list">
@@ -338,6 +338,107 @@ onMounted(fetchData)
     background-color: #f5f7fa;
     color: #909399;
     font-size: 24px;
+  }
+}
+
+// 移动端响应式适配
+@media (max-width: 768px) {
+  .training-index {
+    padding: 12px;
+    
+    .stat-card {
+      margin-bottom: 12px;
+      
+      .stat-content {
+        gap: 12px;
+      }
+      
+      .stat-value {
+        font-size: 18px;
+      }
+      
+      .stat-label {
+        font-size: 12px;
+      }
+    }
+    
+    .resume-card .resume-wrapper {
+      flex-direction: column;
+      text-align: center;
+      
+      .resume-cover {
+        width: 100%;
+        max-width: 300px;
+        margin: 0 auto;
+      }
+      
+      .resume-action {
+        padding: 16px 0 0 0;
+      }
+    }
+    
+    .course-card {
+      margin-bottom: 12px;
+      
+      .course-cover {
+        height: 120px;
+      }
+    }
+    
+    .section-title {
+      font-size: 16px !important;
+    }
+  }
+}
+
+/* 暗黑模式适配 */
+html.dark .training-index {
+  background-color: #0f172a !important;
+  
+  .stat-card {
+    background-color: #1e293b !important;
+    
+    .stat-value {
+      color: #e2e8f0 !important;
+    }
+    
+    .stat-label {
+      color: #94a3b8 !important;
+    }
+  }
+  
+  .resume-card {
+    background-color: #1e293b !important;
+    
+    .resume-title {
+      color: #f1f5f9 !important;
+    }
+    
+    .resume-last,
+    .progress-label {
+      color: #94a3b8 !important;
+    }
+  }
+  
+  .section-title {
+    color: #f1f5f9 !important;
+  }
+  
+  .course-card {
+    background-color: #1e293b !important;
+    
+    .course-title {
+      color: #f1f5f9 !important;
+    }
+    
+    .instructor {
+      color: #94a3b8 !important;
+    }
+  }
+  
+  .exam-alert {
+    background-color: #422006 !important;
+    border-color: #a16207 !important;
   }
 }
 </style>

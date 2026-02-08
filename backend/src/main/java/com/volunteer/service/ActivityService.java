@@ -45,4 +45,9 @@ public interface ActivityService {
      * 增加浏览次数
      */
     void incrementViewCount(Long id);
+
+    /**
+     * 记录浏览足迹
+     */
+    void recordView(Long userId, Long activityId);
 }
