@@ -1,0 +1,1 @@
+const o=(t,s="/default-cover.jpg")=>{if(!t)return s;if(t.startsWith("http"))return t;const r=t.startsWith("/")?t.substring(1):t;return`${(()=>{const e=localStorage.getItem("apiBaseUrl");return e?e.endsWith("/")?e:`${e}/`:"http://192.168.0.101:8080/"})()}${r}`};export{o as g};

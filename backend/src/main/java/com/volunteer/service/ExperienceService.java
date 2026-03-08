@@ -28,7 +28,13 @@ public interface ExperienceService {
     /**
      * 分页查询心得
      */
-    Page<ExperienceDTO> pageExperiences(Integer page, Integer size, Long activityId, Long volunteerId, Integer status);
+    Page<ExperienceDTO> pageExperiences(Integer page, Integer size, Long activityId, Long volunteerId, Integer status,
+            String keyword);
+
+    /**
+     * 公开的分页查询心得 (动态排序：hot/recommend/mine)
+     */
+    Page<ExperienceDTO> publicPageExperiences(Integer page, Integer size, String type, Long userId, String keyword);
 
     /**
      * 分页查询我的心得 (根据userId)
@@ -56,4 +62,9 @@ public interface ExperienceService {
      * 检查是否已点赞
      */
     boolean checkLiked(Long experienceId, Long userId);
+
+    /**
+     * 获取搜索建议
+     */
+    java.util.List<String> getSearchSuggestions(String keyword);
 }

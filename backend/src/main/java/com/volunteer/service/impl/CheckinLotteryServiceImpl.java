@@ -217,10 +217,11 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
         }
 
         YearMonth yearMonth = YearMonth.of(year, month);
-        LocalDate startDate = yearMonth.atDay(1);
-        LocalDate endDate = yearMonth.atEndOfMonth();
+        // 为了兼容前端 42 格日历（包含上月/下月补位），范围左右各扩 7 天
+        LocalDate startDate = yearMonth.atDay(1).minusDays(7);
+        LocalDate endDate = yearMonth.atEndOfMonth().plusDays(7);
 
-        log.info("查询签到日历: 用户 {}, 年月 {}-{}", volunteer.getId(), year, month);
+        log.info("查询签到日历(含补位): 用户 {}, 范围 {} 至 {}", volunteer.getId(), startDate, endDate);
 
         return signinMapper.selectList(
                 new LambdaQueryWrapper<SigninRecord>()

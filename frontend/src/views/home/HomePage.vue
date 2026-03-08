@@ -1,480 +1,743 @@
 <template>
-  <div class="home-page">
-    <!-- 顶部大屏轮播图 -->
-    <div class="carousel-container">
-      <el-carousel :interval="5000" height="400px" indicator-position="outside">
-        <!-- 管理员配置的Banner轮播图 -->
-        <el-carousel-item v-for="item in banners" :key="'banner-' + item.id">
-          <div class="carousel-item" @click="item.link && router.push(item.link)">
-            <el-image :src="item.image" fit="cover" class="carousel-image">
-              <template #error>
-                <div class="image-placeholder">
-                  <el-icon :size="60"><Picture /></el-icon>
-                </div>
-              </template>
+  <div class="home-page" :class="{ 'is-mobile': isMobile }">
+
+    <!-- ==================== PC 英雄 Banner ==================== -->
+    <div v-if="!isMobile" class="hero-banner">
+      <el-carousel
+        :interval="5000"
+        height="420px"
+        arrow="hover"
+        class="hero-carousel"
+      >
+        <el-carousel-item v-for="item in heroBanners" :key="item.id">
+          <div class="hero-slide">
+            <el-image :src="item.image || item.coverImage || '/default-cover.jpg'" fit="cover" class="hero-bg" lazy>
+              <template #error><div class="hero-fallback"></div></template>
             </el-image>
-            <div class="carousel-overlay" v-if="item.title">
-              <div class="carousel-text">
-                <h2>{{ item.title }}</h2>
-              </div>
-            </div>
+            <div class="slide-gradient"></div>
           </div>
         </el-carousel-item>
-        <!-- 精选活动轮播 (作为后备) -->
-        <el-carousel-item v-for="item in featuredActivities" :key="'activity-' + item.id" v-if="banners.length === 0">
-          <div class="carousel-item" @click="router.push(`/activity/${item.id}`)">
-            <el-image :src="item.coverImage || '/default-cover.jpg'" fit="cover" class="carousel-image">
-              <template #error>
-                <div class="image-placeholder">
-                  <el-icon :size="60"><Picture /></el-icon>
-                </div>
-              </template>
-            </el-image>
-            <div class="carousel-overlay">
-              <div class="carousel-text">
-                <el-tag type="danger" effect="dark" class="featured-tag">精选</el-tag>
-                <h2>{{ item.title }}</h2>
-                <p>{{ item.summary }}</p>
-                <el-button type="primary" size="large">立即参与</el-button>
-              </div>
-            </div>
-          </div>
-        </el-carousel-item>
-        <!-- 默认欢迎页 -->
-        <el-carousel-item v-if="banners.length === 0 && featuredActivities.length === 0">
-          <div class="carousel-item welcome-slide">
-            <div class="welcome-text">
-              <h1>欢迎来到校园志愿者系统 👋</h1>
-              <p>传递爱心，奉献社会，让志愿精神温暖每一个人</p>
-              <el-button type="primary" size="large" @click="router.push('/activity')">开始探索</el-button>
-            </div>
+        <el-carousel-item v-if="heroBanners.length === 0">
+          <div class="hero-slide hero-default">
+            <div class="slide-gradient"></div>
           </div>
         </el-carousel-item>
       </el-carousel>
-    </div>
 
-    <!-- 快捷入口 -->
-    <div class="quick-links">
-      <div class="link-item" @click="router.push('/activity')">
-        <div class="link-icon" style="background: #409eff"><el-icon><Opportunity /></el-icon></div>
-        <span>活动中心</span>
-      </div>
-      <div class="link-item" @click="router.push('/training')">
-        <div class="link-icon" style="background: #67c23a"><el-icon><Reading /></el-icon></div>
-        <span>培训学院</span>
-      </div>
-      <div class="link-item" @click="router.push('/mall')">
-        <div class="link-icon" style="background: #e6a23c"><el-icon><Shop /></el-icon></div>
-        <span>积分商城</span>
-      </div>
-      <div class="link-item" @click="router.push('/profile/history')">
-        <div class="link-icon" style="background: #f56c6c"><el-icon><Histogram /></el-icon></div>
-        <span>志愿记录</span>
-      </div>
-    </div>
-
-    <!-- 热门活动板块 -->
-    <div class="section-container">
-      <div class="section-header">
-        <div class="title-area">
-          <span class="main-title">🔥 热门活动</span>
-          <span class="sub-title">实时更新，只为发现更好的你</span>
+      <!-- 浮动文字 (不影响轮播) -->
+      <div class="hero-overlay" @click.stop>
+        <div class="hero-content">
+          <h1 class="hero-title">让志愿精神温暖每一个人</h1>
+          <p class="hero-subtitle">传递爱心 · 奉献社会 · 汇聚青春力量</p>
+          <button class="hero-cta" @click="router.push('/activity')">
+            <span>立即加入</span>
+            <el-icon><ArrowRight /></el-icon>
+          </button>
         </div>
-        <el-button type="primary" link @click="router.push('/activity')">
-          查看更多 <el-icon><ArrowRight /></el-icon>
-        </el-button>
       </div>
 
-      <el-row :gutter="24" v-loading="loadingActivities">
-        <el-col v-for="item in activities" :key="item.id" :xs="24" :sm="12" :lg="8">
-          <ActivityCard :activity="item" />
-        </el-col>
-      </el-row>
-      <el-empty v-if="!loadingActivities && activities.length === 0" description="暂无热门活动" />
+      <!-- 底部弧形分割 -->
+      <div class="hero-curve">
+        <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
+          <path d="M0,60 C480,0 960,0 1440,60 L1440,60 L0,60 Z" :fill="isMobile ? '#fff' : 'var(--app-bg)'" />
+        </svg>
+      </div>
     </div>
+
+    <!-- ==================== 移动端：Aurora Glass Home ==================== -->
+    <MobileHome
+      v-if="isMobile"
+      :banners="heroBanners"
+      :nav-items="kingkongItems"
+      :activities="displayedActivities"
+      :loading="loadingActivities"
+      :active-filter="activityFilter"
+      @filter-change="(val: string) => activityFilter = val"
+      @join="router.push('/activity')"
+      @nav="(path) => router.push(path)"
+      @more="router.push('/activity')"
+      @detail="(id) => router.push(`/activity/${id}`)"
+    />
+
+    <!-- ==================== PC端内?(原来的逻辑保持不变) ==================== -->
+    <template v-else>
+      <!-- PC端：悬浮渐变快捷卡片 -->
+      <div class="pc-quick-section">
+        <div class="pc-quick-grid">
+          <div
+            v-for="(item, i) in pcQuickLinks"
+            :key="item.label"
+            class="quick-card"
+            :style="{ animationDelay: `${i * 0.1}s` }"
+            @click="router.push(item.path)"
+          >
+            <div class="qc-icon" :style="{ background: item.color }">
+              <el-icon :size="28"><component :is="item.icon" /></el-icon>
+            </div>
+            <div class="qc-text">
+              <span class="qc-label">{{ item.label }}</span>
+              <span class="qc-arrow"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 热门活动?(仅PC) -->
+      <div class="activity-section">
+        <div class="section-header">
+          <div class="section-title-area">
+            <span class="section-title">🔥 为你推荐</span>
+            <span class="section-subtitle">基于多模态算法，发现最适合你的志愿机会</span>
+          </div>
+          <div class="section-actions">
+            <el-select
+              v-model="activityFilter"
+              placeholder="筛选"
+              class="custom-filter-select"
+              @change="handleFilterChange"
+            >
+              <el-option label="全部" value="" />
+              <el-option label="热门" value="hot" />
+              <el-option label="推荐" value="recommend" />
+            </el-select>
+            <button class="view-more-btn" @click="router.push('/activity')">
+              查看更多 <el-icon><ArrowRight /></el-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- 骨架屏 -->
+        <div v-if="loadingActivities" class="skeleton-grid">
+          <div v-for="i in 6" :key="i" class="skeleton-card">
+            <el-skeleton animated>
+              <template #template>
+                <el-skeleton-item variant="image" style="height: 160px" />
+                <div style="padding: 14px">
+                  <el-skeleton-item variant="h3" style="width: 80%" />
+                  <el-skeleton-item variant="text" style="width: 60%; margin-top: 12px" />
+                  <el-skeleton-item variant="text" style="width: 40%; margin-top: 8px" />
+                </div>
+              </template>
+            </el-skeleton>
+          </div>
+        </div>
+
+        <!-- 活动网格 (PC) -->
+        <div v-else>
+          <TransitionGroup name="card-fade" tag="div" class="pc-activity-grid">
+          <div v-for="item in displayedActivities" :key="item.id" class="grid-item recommend-card-wrapper">
+              <div v-if="item.algoTag" class="algo-tag-float">
+                <el-tooltip :content="item.reason" placement="top">
+                  <span class="tag-content"><el-icon><Opportunity /></el-icon> {{ item.algoTag }}</span>
+                </el-tooltip>
+              </div>
+              <ActivityCard :activity="item" />
+            </div>
+          </TransitionGroup>
+          <el-empty v-if="displayedActivities.length === 0" description="暂无推荐活动" :image-size="80" />
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { request } from '@/utils/request'
 import {
-  Reading,
-  Shop,
-  Histogram,
-  Opportunity,
-  ArrowRight,
-  Picture
+  ArrowRight, Reading, Shop, Histogram, Opportunity,
+  Calendar, Bell, ChatDotRound, Setting, Clock, Promotion
 } from '@element-plus/icons-vue'
 import ActivityCard from '@/components/ActivityCard.vue'
+import MobileHome from './MobileHome.vue'
 
 const router = useRouter()
 
+// ================== 响应式判断 ==================
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 768)
+onMounted(() => {
+  window.addEventListener('resize', () => { windowWidth.value = window.innerWidth })
+})
+
+// ================== 金刚区配置 ==================
+const kingkongItems = [
+  { label: '签到',  path: '/mall/checkin',    icon: Calendar,     color: 'linear-gradient(135deg, #FF6B6B, #EE5A24)' },
+  { label: '商城',  path: '/mall/index',      icon: Shop,         color: 'linear-gradient(135deg, #FFA502, #E67E22)' },
+  { label: '培训',  path: '/training/index',  icon: Reading,      color: 'linear-gradient(135deg, #1DD1A1, #10AC84)' },
+  { label: '圈子',  path: '/experience',      icon: Promotion,    color: 'linear-gradient(135deg, #54A0FF, #2E86DE)' },
+  { label: '反馈',  path: '/feedback',        icon: ChatDotRound, color: 'linear-gradient(135deg, #A29BFE, #6C5CE7)' },
+  { label: '公告',  path: '/notice/list',     icon: Bell,         color: 'linear-gradient(135deg, #FD79A8, #E84393)' },
+  { label: '时长',  path: '/profile/history', icon: Clock,        color: 'linear-gradient(135deg, #00CEC9, #00B894)' },
+  { label: '设置',  path: '/profile/info',    icon: Setting,      color: 'linear-gradient(135deg, #636E72, #2D3436)' },
+]
+
+// ================== PC端快捷入口 ==================
+const pcQuickLinks = [
+  { label: '活动中心', path: '/activity',       icon: Opportunity, color: 'linear-gradient(135deg, #409eff, #2e86de)' },
+  { label: '培训学院', path: '/training/index',  icon: Reading,     color: 'linear-gradient(135deg, #67c23a, #10ac84)' },
+  { label: '积分商城', path: '/mall/index',      icon: Shop,        color: 'linear-gradient(135deg, #e6a23c, #e67e22)' },
+  { label: '志愿记录', path: '/profile/history', icon: Histogram,   color: 'linear-gradient(135deg, #f56c6c, #ee5a24)' },
+]
+
+// ================== 数据状态 ==================
 const banners = ref<any[]>([])
 const featuredActivities = ref<any[]>([])
 const activities = ref<any[]>([])
+const recommendations = ref<any[]>([])
 const loadingActivities = ref(false)
+const activityFilter = ref('')
 
-// 获取管理员配置的轮播图
-const fetchBanners = async () => {
-  try {
-    const res = await request.get('/banner/list')
-    banners.value = res.data || []
-  } catch (error) {
-    console.error('获取轮播图失败:', error)
+const heroBanners = computed(() => {
+  if (banners.value.length) return banners.value
+  if (featuredActivities.value.length) return featuredActivities.value
+  return []
+})
+
+const displayedActivities = computed(() => {
+  if (activityFilter.value === 'recommend') {
+    return recommendations.value.length > 0 ? recommendations.value : activities.value.filter(a => a.isFeatured || a.isRecommended)
   }
+  if (activityFilter.value === 'hot') {
+    return [...activities.value].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+  }
+  return activities.value
+})
+
+const handleFilterChange = () => { /* computed handled */ }
+
+// ================== 接口请求 ==================
+const fetchBanners = async () => {
+  try { banners.value = (await request.get('/banner/list')).data || [] }
+  catch (e) { console.error('获取轮播图失败', e) }
 }
 
 const fetchFeaturedActivities = async () => {
   try {
     const res = await request.get('/activity/list', { page: 1, size: 5, isFeatured: 1, status: 2 })
     featuredActivities.value = res.data?.records || []
-  } catch (error) {
-    console.error('获取精选活动失败:', error)
-  }
+  } catch (e) { console.error('获取精选活动失败', e) }
 }
 
 const fetchActivities = async () => {
   loadingActivities.value = true
   try {
-    // 获取热门活动（目前以浏览量排序或者最新发布的报名中活动）
-    const res = await request.get('/activity/list', { page: 1, size: 6, status: 2, orderBy: 'viewCount' })
+    const res = await request.get('/activity/list', { page: 1, size: 9, status: 2, orderBy: 'viewCount' })
     activities.value = res.data?.records || []
-  } catch (error) {
-    console.error('获取活动列表失败:', error)
-  } finally {
-    loadingActivities.value = false
+  } catch (e) { console.error('获取活动列表失败:', e) }
+  finally { loadingActivities.value = false }
+}
+
+const fetchRecommendations = async () => {
+  try {
+    const res = await request.get('/recommendation/home')
+    if (res.code === 200) {
+      recommendations.value = res.data || []
+    }
+  } catch (e) {
+    console.debug('获取推荐失败，将展示热门活动')
   }
 }
 
-onMounted(() => {
+onMounted(() => { 
   fetchBanners()
   fetchFeaturedActivities()
   fetchActivities()
+  fetchRecommendations()
 })
 </script>
 
 <style lang="scss" scoped>
+// ================================================================
+// 全局动画
+// ================================================================
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+// ================================================================
+// 页面容器
+// ================================================================
 .home-page {
+  background: var(--app-bg);
   padding-bottom: 40px;
 
-  .carousel-container {
-    margin-bottom: 30px;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-
-    .carousel-item {
-      position: relative;
-      height: 100%;
-      cursor: pointer;
-
-      .carousel-image {
-        width: 100%;
-        height: 100%;
-      }
-
-      .carousel-overlay {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 100%;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.2) 60%, transparent 100%);
-        display: flex;
-        align-items: flex-end;
-        padding: 40px;
-
-        .carousel-text {
-          color: #fff;
-          max-width: 800px;
-
-          .featured-tag {
-            margin-bottom: 12px;
-          }
-
-          h2 {
-            font-size: 32px;
-            margin: 0 0 12px;
-            font-weight: 700;
-          }
-
-          p {
-            font-size: 18px;
-            margin-bottom: 24px;
-            opacity: 0.9;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            line-clamp: 2;
-            -webkit-box-orient: vertical;
-          }
-        }
-      }
-
-      &.welcome-slide {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        color: #fff;
-
-        .welcome-text {
-          padding: 0 40px;
-          h1 { font-size: 36px; margin-bottom: 16px; }
-          p { font-size: 20px; opacity: 0.9; margin-bottom: 30px; }
-        }
-      }
-    }
+  &.is-mobile {
+    padding: 0 0 20px;
   }
+}
 
-  .quick-links {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
-    margin-bottom: 40px;
+// ================================================================
+// 英雄 Banner
+// ================================================================
+.hero-banner {
+  position: relative;
+  overflow: hidden;
+}
 
-    .link-item {
+.hero-carousel {
+  // 正常文档流，el-carousel height prop 决定高度
+
+  // 指示?- 白色圆点/胶囊
+  :deep(.el-carousel__indicators) {
+    z-index: 15;
+    bottom: 16px;
+
+    .el-carousel__button {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.5);
+      opacity: 1;
+    }
+
+    .el-carousel__indicator.is-active .el-carousel__button {
       background: #fff;
-      padding: 24px;
-      border-radius: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-
-      &:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-        
-        .link-icon {
-          transform: scale(1.1);
-        }
-      }
-
-      .link-icon {
-        width: 64px;
-        height: 64px;
-        border-radius: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 28px;
-        transition: transform 0.3s;
-      }
-
-      span {
-        font-size: 16px;
-        font-weight: 600;
-        color: #333;
-      }
+      width: 20px;
+      border-radius: 4px;
     }
   }
 
-  .section-container {
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      margin-bottom: 24px;
-      padding: 0 4px;
-
-      .title-area {
-        .main-title {
-          display: block;
-          font-size: 24px;
-          font-weight: 700;
-          color: #333;
-          margin-bottom: 4px;
-        }
-        .sub-title {
-          font-size: 14px;
-          color: #999;
-        }
-      }
-    }
-
-    .activity-card {
-      margin-bottom: 24px;
-      border-radius: 16px;
-      overflow: hidden;
-      border: none;
-      transition: all 0.3s;
-
-      .activity-cover-wrapper {
-        position: relative;
-        height: 200px;
-        overflow: hidden;
-
-        .activity-cover {
-          width: 100%;
-          height: 100%;
-          transition: transform 0.5s;
-        }
-
-        .activity-status {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-        }
-      }
-
-      &:hover {
-        .activity-cover {
-          transform: scale(1.1);
-        }
-      }
-
-      .activity-content {
-        padding: 20px;
-
-        .category-info {
-          margin-bottom: 12px;
-        }
-
-        .activity-title {
-          font-size: 18px;
-          font-weight: 600;
-          color: #333;
-          margin: 0 0 16px;
-          line-height: 1.4;
-          height: 50px;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        .activity-footer {
-          display: flex;
-          justify-content: space-between;
-          border-top: 1px solid #f0f0f0;
-          padding-top: 16px;
-
-          .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            color: #666;
-
-            .el-icon {
-              color: #409eff;
-            }
-          }
-        }
-      }
-    }
+  // 箭头
+  :deep(.el-carousel__arrow) {
+    z-index: 15;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8px);
+    &:hover { background: rgba(255, 255, 255, 0.45); }
   }
+}
 
-  .image-placeholder {
+.hero-slide {
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  .hero-bg {
     width: 100%;
     height: 100%;
+    display: block;
+
+    :deep(img) {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  }
+}
+
+// 每张 slide 自带渐变蒙层
+.slide-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 60, 50, 0.3) 0%,
+    rgba(0, 80, 70, 0.15) 50%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
+  pointer-events: none;
+}
+
+.hero-default {
+  background: linear-gradient(135deg, #00BFA6 0%, #009688 40%, #00695C 100%);
+}
+
+.hero-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #00BFA6 0%, #009688 40%, #00695C 100%);
+}
+
+// 浮动文字?- 不阻挡轮播交?
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; // 让点击穿透到轮播?
+}
+
+.hero-content {
+  text-align: center;
+  color: #fff;
+  animation: fadeInUp 0.8s ease-out;
+  pointer-events: auto; // 恢复文字/按钮的点?
+
+  .hero-title {
+    font-size: 36px;
+    font-weight: 800;
+    margin: 0 0 10px;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+    letter-spacing: 2px;
+  }
+
+  .hero-subtitle {
+    font-size: 16px;
+    opacity: 0.9;
+    margin: 0 0 24px;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
+    letter-spacing: 4px;
+  }
+}
+
+.hero-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 28px;
+  background: #fff;
+  color: #00BFA6;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s;
+  animation: pulse 3s ease-in-out infinite;
+
+  &:hover {
+    transform: scale(1.06);
+    box-shadow: 0 8px 28px rgba(0, 191, 166, 0.35);
+  }
+
+  .el-icon { font-size: 18px; transition: transform 0.3s; }
+  &:hover .el-icon { transform: translateX(4px); }
+}
+
+// --- 弧形分割 ---
+.hero-curve {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  z-index: 20;
+  line-height: 0;
+
+  svg { width: 100%; height: 40px; }
+}
+
+// --- 移动端 Hero (CLEANED) ---
+
+// --- 移动端金刚区 (CLEANED) ---
+
+// ================================================================
+// PC 悬浮渐变快捷卡片
+// ================================================================
+.pc-quick-section {
+  max-width: 1440px;
+  margin: -40px auto 0;
+  padding: 0 24px;
+  position: relative;
+  z-index: 30;
+
+  @media (min-width: 1200px) and (max-width: 1600px) { max-width: 90%; }
+  @media (min-width: 1601px) { max-width: 1600px; }
+}
+
+.pc-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.quick-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: fadeInUp 0.5s ease-out both;
+
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+
+    .qc-icon { transform: scale(1.08) rotate(5deg); }
+    .qc-arrow { transform: translateX(4px); opacity: 1; }
+  }
+
+  .qc-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f7fa;
-    color: #c0c4cc;
+    color: #fff;
+    flex-shrink: 0;
+    transition: transform 0.3s;
+  }
+
+  .qc-text {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .qc-label {
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .qc-arrow {
+    font-size: 18px;
+    color: #ccc;
+    opacity: 0;
+    transition: all 0.3s;
   }
 }
 
-/* 移动端响应式适配 */
-@media (max-width: 768px) {
-  .home-page {
-    .carousel-container {
-      :deep(.el-carousel) {
-        height: 200px !important;
-      }
-      
-      .carousel-item {
-        .carousel-image {
-          height: 200px;
+// ================================================================
+// 热门活动?
+// ================================================================
+.activity-section {
+  max-width: 1440px;
+  margin: 40px auto 0;
+  padding: 0 24px;
+
+  @media (min-width: 1200px) and (max-width: 1600px) { max-width: 90%; }
+  @media (min-width: 1601px) { max-width: 1600px; }
+
+  &.section-mobile {
+    margin-top: 10px;
+    padding: 0;
+  }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  padding: 0 4px;
+
+  .section-title-area {
+    .section-title {
+      display: block;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      font-size: 24px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: #999;
+    }
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    // 筛选下拉框 - 和谐统一版设计 (Pill shape)
+    .custom-filter-select {
+      width: 110px;
+
+      :deep(.el-input__wrapper),
+      :deep(.el-select__wrapper) {
+        height: 42px !important;
+        min-height: 42px !important;
+        line-height: 42px !important;
+        padding: 0 16px !important;
+        box-shadow: 0 0 0 1.5px #DCDFE6 inset !important;
+        border-radius: 50px !important; 
+        background-color: #fff !important;
+        transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex !important;
+        align-items: center !important;
+
+        &:hover, &.is-focus {
+          box-shadow: 0 0 0 1.5px var(--primary-color, #00BFA6) inset, 0 4px 12px rgba(0, 191, 166, 0.15) !important;
         }
+
+        .el-select__selection {
+          height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+      }
+
+      :deep(.el-input__inner),
+      :deep(.el-select__placeholder),
+      :deep(.el-select__selected-item),
+      :deep(.el-select__selection-item),
+      :deep(span) {
+        color: #000 !important; 
+        -webkit-text-fill-color: #000 !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        display: inline-block !important;
+        line-height: 1 !important;
+      }
+
+      // 下拉箭头图标
+      :deep(.el-input__suffix .el-icon),
+      :deep(.el-select__caret),
+      :deep(.el-icon) {
+        color: #999 !important;
+        font-size: 13px !important;
+        opacity: 1 !important;
       }
     }
-    
-    /* 快捷入口 2x2 田字格布局 */
-    .quick-links {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-bottom: 24px;
-      padding: 0 8px;
-      
-      .link-item {
-        padding: 16px 12px;
-        border-radius: 12px;
-        
-        .link-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
-          font-size: 22px;
-        }
-        
-        span {
-          font-size: 13px;
-        }
+
+    // "查看更多" - 白底主题色边框按钮
+    .view-more-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: 42px;
+      padding: 0 28px;
+      border: 1.5px solid var(--primary-color, #00BFA6);
+      border-radius: 50px;
+      background: #fff;
+      color: var(--primary-color, #00BFA6);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+
+      .el-icon { font-size: 14px; transition: transform 0.28s; }
+
+      &:hover {
+        background: var(--primary-color, #00BFA6);
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(0, 191, 166, 0.25);
+        border-color: transparent;
+        .el-icon { transform: translateX(3px); }
       }
-    }
-    
-    .section-container {
-      .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 16px;
-        
-        .title-area {
-          .main-title {
-            font-size: 18px;
-          }
-          .sub-title {
-            font-size: 12px;
-          }
-        }
-      }
-      
-      .el-row {
-        margin: 0 -8px !important;
-        
-        .el-col {
-          padding: 0 8px !important;
-        }
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 8px rgba(0, 191, 166, 0.15);
       }
     }
   }
 }
 
-/* 超小屏幕 (iPhone SE 等) */
-@media (max-width: 400px) {
-  .home-page {
-    .carousel-container {
-      :deep(.el-carousel) {
-        height: 160px !important;
-      }
-    }
+// --- 推荐标签样式 ---
+.recommend-card-wrapper {
+  position: relative;
+  
+  .algo-tag-float {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
     
-    .section-container {
-      padding: 0 12px;
-      
-      .section-header {
-        .title-area {
-          .main-title {
-            font-size: 16px;
-          }
-          .sub-title {
-            font-size: 11px;
-          }
-        }
-      }
+    .tag-content {
+      background: rgba(0, 191, 166, 0.9);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 4px 12px rgba(0, 191, 166, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      cursor: help;
     }
   }
 }
+
+.recommend-item-wrapper {
+  position: relative;
+  margin-bottom: 4px;
+
+  .algo-badge-mini {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 5;
+    background: var(--primary-color);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 191, 166, 0.2);
+  }
+}
+
+// --- 骨架屏 ---
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.skeleton-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+// --- PC 活动网格 ---
+.pc-activity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+
+  .grid-item {
+    animation: fadeInUp 0.4s ease-out both;
+
+    @for $i from 1 through 9 {
+      &:nth-child(#{$i}) { animation-delay: #{$i * 0.05}s; }
+    }
+  }
+}
+
+// --- TransitionGroup ---
+.card-fade-enter-active { transition: all 0.4s ease; }
+.card-fade-leave-active { transition: all 0.2s ease; }
+.card-fade-enter-from { opacity: 0; transform: translateY(20px); }
+.card-fade-leave-to { opacity: 0; transform: scale(0.95); }
+.card-fade-move { transition: transform 0.4s ease; }
+
+// --- 移动端信息流 ---
+.mobile-activity-list {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
 </style>

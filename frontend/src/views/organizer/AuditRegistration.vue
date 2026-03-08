@@ -92,13 +92,13 @@
           </div>
           <el-divider direction="vertical" />
           <div class="stat">
-            <span class="value">{{ activity.maxParticipants || '∞' }}</span>
+            <span class="value">{{ activity.maxParticipants || '-' }}</span>
             <span class="label">招募上限</span>
           </div>
           <el-divider direction="vertical" />
           <div class="stat">
             <span class="value warning">{{ pendingCount }}</span>
-            <span class="label">待审核</span>
+            <span class="label">待审</span>
           </div>
         </div>
       </div>
@@ -110,6 +110,7 @@
         v-loading="loading"
         stripe
         style="width: 100%"
+        class="hidden-sm-and-down"
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" :selectable="row => row.status === 0" />
@@ -185,6 +186,63 @@
         </el-table-column>
       </el-table>
 
+      <!-- Mobile Card List -->
+      <div class="hidden-md-and-up mobile-card-list">
+         <div v-for="item in filteredRegistrations" :key="item.id" class="mobile-card">
+            <div class="card-header-mobile">
+               <div class="volunteer-info">
+                  <el-avatar :size="36" :src="item.volunteerAvatar">
+                     <el-icon><User /></el-icon>
+                  </el-avatar>
+                  <span class="volunteer-name">{{ item.volunteerName || '未知' }}</span>
+               </div>
+               <el-tag :type="REG_STATUS_MAP[item.status]?.type" size="small" effect="light">
+                  {{ REG_STATUS_MAP[item.status]?.label }}
+               </el-tag>
+            </div>
+            
+            <div class="card-body-mobile">
+               <div class="info-row">
+                  <span class="label">学号:</span>
+                  <span class="value">{{ item.studentId || '-' }}</span>
+               </div>
+               <div class="info-row">
+                  <span class="label">电话:</span>
+                  <span class="value">{{ item.phone || '-' }}</span>
+               </div>
+               <div class="info-row">
+                  <span class="label">学院:</span>
+                  <span class="value">{{ item.college || '-' }} {{ item.major ? ` / ${item.major}` : '' }}</span>
+               </div>
+               <div class="info-row">
+                  <span class="label">时间:</span>
+                  <span class="value">{{ formatDate(item.createTime) }}</span>
+               </div>
+            </div>
+
+            <div class="card-footer-mobile" v-if="item.status === 0">
+               <el-button
+                  type="success"
+                  size="small"
+                  @click="handleAudit(item.id, true)"
+                  :loading="auditingId === item.id"
+                  class="action-btn"
+               >
+                  <el-icon><Check /></el-icon> 通过
+               </el-button>
+               <el-button
+                  type="danger"
+                  size="small"
+                  @click="showRejectDialog(item)"
+                  :loading="auditingId === item.id"
+                  class="action-btn"
+               >
+                  <el-icon><Close /></el-icon> 驳回
+               </el-button>
+            </div>
+         </div>
+      </div>
+
       <el-empty
         v-if="!loading && filteredRegistrations.length === 0"
         :description="selectedActivityId ? '暂无报名记录' : '请先选择一个活动'"
@@ -196,8 +254,10 @@
           v-model:current-page="queryParams.page"
           v-model:page-size="queryParams.size"
           :total="total"
-          :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next"
+          :page-sizes="[10, 20, 50, 100]"
+          :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+          :pager-count="isMobile ? 5 : 7"
+          :small="isMobile"
           background
           @size-change="fetchRegistrations"
           @current-change="fetchRegistrations"
@@ -224,7 +284,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -232,6 +292,9 @@ import {
 } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
 import dayjs from 'dayjs'
+
+import { useMobile } from '@/composables/useMobile'
+const { isMobile } = useMobile()
 
 const route = useRoute()
 const tableRef = ref()
@@ -249,7 +312,7 @@ const registrations = ref<any[]>([])
 const total = ref(0)
 const pendingCount = ref(0)
 
-// 筛选
+// 筛选?
 const statusFilter = ref<number | null>(0) // 默认显示待审核
 const searchKeyword = ref('')
 const selectedRows = ref<any[]>([])
@@ -294,7 +357,7 @@ const fetchActivities = async () => {
     const res = await request.get('/activity/my', { page: 1, size: 100 })
     activities.value = res.data?.records || []
     
-    // 如果没有预选活动但有活动列表，自动选第一个
+    // 如果没有预选活动但有活动列表，自动选第一行
     if (!selectedActivityId.value && activities.value.length > 0) {
       selectedActivityId.value = activities.value[0].id
     }
@@ -336,7 +399,7 @@ const fetchRegistrations = async () => {
     registrations.value = res.data?.records || res.data || []
     total.value = res.data?.total || registrations.value.length
     
-    // 统计待审核数量
+    // 统计待审核数
     if (statusFilter.value === 0) {
       pendingCount.value = total.value
     } else {
@@ -370,14 +433,14 @@ const handleSelectionChange = (rows: any[]) => {
 const handleAudit = async (id: number, pass: boolean) => {
   try {
     await ElMessageBox.confirm(
-      `确定要${pass ? '通过' : '驳回'}该志愿者的报名申请吗？`,
+      `确定${pass ? '通过' : '驳回'}该志愿者的报名申请吗？`,
       '审核确认',
       { type: pass ? 'success' : 'warning' }
     )
 
     auditingId.value = id
     await request.post('/registration/audit', { id, pass })
-    ElMessage.success(`已${pass ? '通过' : '驳回'}报名申请`)
+    ElMessage.success(`${pass ? '通过' : '驳回'}报名申请`)
     fetchRegistrations()
     fetchActivity()
   } catch (error: any) {
@@ -425,14 +488,14 @@ const handleBatchAudit = async (pass: boolean) => {
   const action = pass ? '通过' : '驳回'
   try {
     await ElMessageBox.confirm(
-      `确定要批量${action}选中的 ${selectedRows.value.length} 条报名吗？`,
+      `确定要批${action}选中 ${selectedRows.value.length} 条报名吗？`,
       '批量审核',
       { type: pass ? 'success' : 'warning' }
     )
 
     const ids = selectedRows.value.map(r => r.id)
     await request.post('/registration/audit/batch', { ids, pass })
-    ElMessage.success(`已批量${action} ${ids.length} 条报名`)
+    ElMessage.success(`已批${action} ${ids.length} 条报名`)
     selectedRows.value = []
     fetchRegistrations()
     fetchActivity()
@@ -512,10 +575,11 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
     border-radius: 10px;
     margin-bottom: 20px;
     color: white;
+    box-shadow: 0 8px 20px rgba(0, 147, 233, 0.15);
 
     .overview-left {
       h3 {
@@ -617,6 +681,108 @@ onMounted(() => {
     margin-top: 20px;
     padding-top: 16px;
     border-top: 1px solid var(--el-border-color-lighter);
+  }
+
+  /* Mobile Adaptation */
+  @media only screen and (max-width: 768px) {
+    .audit-registration { padding: 4px; }
+    
+    .filter-bar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      
+      .el-select, .el-input { width: 100% !important; }
+      
+      .batch-actions {
+        width: 100%;
+        display: flex;
+        gap: 10px;
+        
+        button { flex: 1; }
+      }
+    }
+    
+    .activity-overview {
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+      
+      .overview-left {
+        h3 { font-size: 16px; }
+        .meta { 
+          flex-direction: column; 
+          gap: 4px; 
+          align-items: center; 
+        }
+      }
+      
+      .overview-stats { width: 100%; justify-content: space-around; }
+    }
+    
+    .mobile-card-list {
+      background: var(--bg-page);
+      padding: 4px;
+      
+      .mobile-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-light);
+        
+        .card-header-mobile {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border-light);
+          
+          .volunteer-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            
+            .volunteer-name {
+              font-weight: bold;
+              font-size: 14px;
+            }
+          }
+        }
+        
+        .card-body-mobile {
+          .info-row {
+            display: flex;
+            margin-bottom: 8px;
+            font-size: 13px;
+            
+            .label {
+              color: var(--text-secondary);
+              width: 50px;
+              flex-shrink: 0;
+            }
+            
+            .value {
+              color: var(--text-primary);
+              flex: 1;
+              word-break: break-all;
+            }
+          }
+        }
+        
+        .card-footer-mobile {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid var(--border-light);
+          display: flex;
+          gap: 10px;
+          
+          .action-btn { flex: 1; }
+        }
+      }
+    }
   }
 }
 </style>

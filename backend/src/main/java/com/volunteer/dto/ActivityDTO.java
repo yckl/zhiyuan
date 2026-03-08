@@ -88,6 +88,10 @@ public class ActivityDTO {
     @Schema(description = "状态")
     private Integer status;
 
+    @Schema(description = "待审核人数")
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private Integer pendingCount;
+
     @Schema(description = "状态名称")
     private String statusName;
 

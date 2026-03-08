@@ -15,6 +15,8 @@ import com.volunteer.mapper.SysUserMapper;
 import com.volunteer.mapper.UserLikeMapper;
 import com.volunteer.mapper.VolunteerMapper;
 import com.volunteer.service.ExperienceService;
+import com.volunteer.service.SysMessageService;
+import com.volunteer.entity.SysMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -40,6 +42,7 @@ public class ExperienceServiceImpl implements ExperienceService {
     private final SysUserMapper sysUserMapper;
     private final ActivityMapper activityMapper;
     private final UserLikeMapper userLikeMapper;
+    private final SysMessageService sysMessageService;
 
     private static final Map<Integer, String> STATUS_MAP = new HashMap<>();
     static {
@@ -124,7 +127,7 @@ public class ExperienceServiceImpl implements ExperienceService {
 
     @Override
     public Page<ExperienceDTO> pageExperiences(Integer page, Integer size, Long activityId, Long volunteerId,
-            Integer status) {
+            Integer status, String keyword) {
         Page<Experience> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<Experience> queryWrapper = new LambdaQueryWrapper<>();
 
@@ -141,11 +144,39 @@ public class ExperienceServiceImpl implements ExperienceService {
             queryWrapper.eq(Experience::getStatus, Experience.STATUS_PUBLISHED);
         }
 
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            queryWrapper.and(w -> w.like(Experience::getTitle, keyword)
+                    .or()
+                    .like(Experience::getContent, keyword));
+        }
+
         queryWrapper.orderByDesc(Experience::getCreateTime);
 
         Page<Experience> resultPage = experienceMapper.selectPage(pageParam, queryWrapper);
 
         // 转换为DTO
+        Page<ExperienceDTO> dtoPage = new Page<>(resultPage.getCurrent(), resultPage.getSize(), resultPage.getTotal());
+        List<ExperienceDTO> dtoList = resultPage.getRecords().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+        dtoPage.setRecords(dtoList);
+
+        return dtoPage;
+    }
+
+    @Override
+    public Page<ExperienceDTO> publicPageExperiences(Integer page, Integer size, String type, Long userId,
+            String keyword) {
+        Page<Experience> pageParam = new Page<>(page, size);
+
+        Page<Experience> resultPage = experienceMapper.selectExperienceList(pageParam, type, userId, keyword);
+
+        // 冷启动策略: 如果是推荐模式并且结果为空，自动降级为热门推荐
+        if ("recommend".equals(type) && resultPage.getRecords().isEmpty()) {
+            log.info("用户 {} 推荐列表为空，触发冷启动策略，降级为热门推荐", userId);
+            resultPage = experienceMapper.selectExperienceList(pageParam, "hot", null, keyword);
+        }
+
         Page<ExperienceDTO> dtoPage = new Page<>(resultPage.getCurrent(), resultPage.getSize(), resultPage.getTotal());
         List<ExperienceDTO> dtoList = resultPage.getRecords().stream()
                 .map(this::convertToDTO)
@@ -277,6 +308,19 @@ public class ExperienceServiceImpl implements ExperienceService {
             experience.setLikeCount(experience.getLikeCount() + 1);
             experienceMapper.updateById(experience);
             log.info("用户 {} 点赞心得 {}", userId, experienceId);
+
+            // 发送点赞通知给心得作者（排除自己点赞自己）
+            Volunteer author = volunteerMapper.selectById(experience.getVolunteerId());
+            if (author != null && author.getUserId() != null && !author.getUserId().equals(userId)) {
+                sysMessageService.sendMessage(
+                        author.getUserId(),
+                        userId,
+                        "收到新点赞",
+                        "有人点赞了您的心得《" + experience.getTitle() + "》",
+                        SysMessage.TYPE_INTERACTION);
+                log.info("发送点赞通知: authorUserId={}, experienceId={}", author.getUserId(), experience.getId());
+            }
+
             return true;
         }
     }
@@ -288,5 +332,21 @@ public class ExperienceServiceImpl implements ExperienceService {
                 .eq(UserLike::getTargetType, UserLike.TARGET_TYPE_EXPERIENCE)
                 .eq(UserLike::getTargetId, experienceId);
         return userLikeMapper.selectCount(query) > 0;
+    }
+
+    @Override
+    public java.util.List<String> getSearchSuggestions(String keyword) {
+        if (!org.springframework.util.StringUtils.hasText(keyword)) {
+            return java.util.Collections.emptyList();
+        }
+        LambdaQueryWrapper<Experience> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.select(Experience::getTitle)
+                .like(Experience::getTitle, keyword)
+                .eq(Experience::getIsDeleted, 0)
+                .eq(Experience::getStatus, Experience.STATUS_PUBLISHED)
+                .last("LIMIT 10");
+        return experienceMapper.selectList(queryWrapper).stream()
+                .map(Experience::getTitle)
+                .collect(Collectors.toList());
     }
 }

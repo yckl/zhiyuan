@@ -7,6 +7,7 @@ import com.volunteer.dto.ExperienceRequest;
 import com.volunteer.entity.Experience;
 import com.volunteer.security.SecurityUtils;
 import com.volunteer.service.ExperienceService;
+import com.volunteer.common.annotation.CheckSensitive;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,6 +31,7 @@ public class ExperienceController {
      * 发布心得
      */
     @PostMapping
+    @CheckSensitive(fields = { "title", "content" })
     @Operation(summary = "发布心得", description = "发布志愿心得")
     public Result<Experience> createExperience(@Valid @RequestBody ExperienceRequest request) {
         Long userId = SecurityUtils.getUserId();
@@ -50,6 +52,7 @@ public class ExperienceController {
      * 更新心得
      */
     @PutMapping
+    @CheckSensitive(fields = { "title", "content" })
     @Operation(summary = "更新心得", description = "更新志愿心得")
     public Result<Void> updateExperience(@Valid @RequestBody ExperienceRequest request) {
         Long userId = SecurityUtils.getUserId();
@@ -93,9 +96,11 @@ public class ExperienceController {
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Long activityId,
             @RequestParam(required = false) Long volunteerId,
-            @RequestParam(required = false) Integer status) {
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String keyword) {
         try {
-            Page<ExperienceDTO> result = experienceService.pageExperiences(page, size, activityId, volunteerId, status);
+            Page<ExperienceDTO> result = experienceService.pageExperiences(page, size, activityId, volunteerId, status,
+                    keyword);
             return Result.success(result);
         } catch (Exception e) {
             log.error("查询心得列表失败: {}", e.getMessage());
@@ -104,16 +109,45 @@ public class ExperienceController {
     }
 
     /**
+     * 获取搜索建议
+     */
+    @GetMapping("/suggestions")
+    @Operation(summary = "获取搜索建议", description = "根据关键词获取心得标题建议")
+    public Result<java.util.List<String>> getSuggestions(@RequestParam String keyword) {
+        try {
+            return Result.success(experienceService.getSearchSuggestions(keyword));
+        } catch (Exception e) {
+            log.error("获取搜索建议失败: {}", e.getMessage());
+            return Result.success(java.util.Collections.emptyList());
+        }
+    }
+
+    /**
      * 公开心得列表（无需登录）
      */
     @GetMapping("/public/list")
-    @Operation(summary = "公开心得列表", description = "公开的已发布心得列表，无需登录")
+    @Operation(summary = "公开心得列表", description = "公开的已发布心得列表，可选动态排序，部分状态需登录(mine)")
     public Result<Page<ExperienceDTO>> publicListExperiences(
             @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "10") Integer pageSize) {
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(defaultValue = "recommend") String type,
+            @RequestParam(required = false) String keyword) {
         try {
-            // 只查询已发布的心得
-            Page<ExperienceDTO> result = experienceService.pageExperiences(pageNum, pageSize, null, null, 1);
+            Long userId = null;
+            try {
+                // 尝试获取当前用户ID用于个性化推荐
+                userId = SecurityUtils.getUserId();
+            } catch (Exception e) {
+                // 未登录情况
+            }
+
+            if ("mine".equals(type) && userId == null) {
+                return Result.unauthorized("请先登录");
+            }
+
+            // 调用新的动态排序检索
+            Page<ExperienceDTO> result = experienceService.publicPageExperiences(pageNum, pageSize, type, userId,
+                    keyword);
             return Result.success(result);
         } catch (Exception e) {
             log.error("查询公开心得列表失败: {}", e.getMessage());

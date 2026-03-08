@@ -45,6 +45,10 @@ public class ExamPaperVO {
         /** 分值 */
         private Integer score;
 
-        // 注意：不包含 correctAnswer
+        /** 正确答案 */
+        private String correctAnswer;
+
+        /** 答案解析 */
+        private String explanation;
     }
 }

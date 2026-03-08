@@ -106,4 +106,4 @@ logging:
 # 文件存储配置
 file:
   upload-dir: uploads
-  access-url: /files
+  access-url: /api/files

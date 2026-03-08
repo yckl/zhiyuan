@@ -2,7 +2,9 @@ package com.volunteer.controller;
 
 import com.volunteer.common.Result;
 import com.volunteer.entity.Course;
+import com.volunteer.security.SecurityUtils;
 import com.volunteer.service.CourseExamService;
+import com.volunteer.service.CourseRecommendationService;
 import com.volunteer.vo.ExamPaperVO;
 import com.volunteer.vo.ExamResultVO;
 import com.volunteer.vo.ExamSubmitDTO;
@@ -14,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 培训考试控制器
@@ -26,6 +29,7 @@ import java.util.List;
 public class CourseExamController {
 
     private final CourseExamService examService;
+    private final CourseRecommendationService courseRecommendationService;
 
     // ==================== 课程相关 ====================
 
@@ -126,12 +130,9 @@ public class CourseExamController {
         return Result.success(examService.getTrainingStats());
     }
 
-    /**
-     * 获取继续学习的课程
-     */
     @GetMapping("/resume")
-    @Operation(summary = "继续学习", description = "获取用户上次参加学习/考试的课程")
-    public Result<Course> getResumeCourse() {
+    @Operation(summary = "继续学习", description = "获取用户上次参加学习/考试的课程 (含进度)")
+    public Result<Map<String, Object>> getResumeCourse() {
         return Result.success(examService.getResumeCourse());
     }
 
@@ -139,9 +140,9 @@ public class CourseExamController {
      * 获取必修课程列表
      */
     @GetMapping("/mandatory")
-    @Operation(summary = "必修课程", description = "获取岗前必修课程列表")
-    public Result<List<Course>> getMandatoryCourses() {
-        return Result.success(examService.getMandatoryCourses());
+    @Operation(summary = "全部课程（含状态）", description = "获取全部课程列表，包含 courseType / passed / progress")
+    public Result<List<Map<String, Object>>> getAllCoursesWithStatus() {
+        return Result.success(examService.getAllCoursesWithStatus());
     }
 
     /**
@@ -169,6 +170,41 @@ public class CourseExamController {
         } catch (Exception e) {
             log.error("检查考试状态失败:", e);
             return Result.success(false);
+        }
+    }
+
+    /**
+     * 追踪课程点击
+     */
+    @PostMapping("/recommend/click")
+    @Operation(summary = "追踪点击", description = "记录用户点击行为以优化推荐结果")
+    public Result<Void> trackClick(@RequestParam Long courseId) {
+        try {
+            Long userId = SecurityUtils.getUserId();
+            courseRecommendationService.trackClick(userId, courseId);
+            return Result.success();
+        } catch (Exception e) {
+            log.error("追踪点击失败:", e);
+            return Result.success(); // 即使失败也不影响用户体验
+        }
+    }
+
+    /**
+     * 获取推荐课程
+     */
+    @GetMapping("/recommend")
+    @Operation(summary = "推荐课程", description = "基于用户画像推荐课程")
+    public Result<List<Map<String, Object>>> getRecommendedCourses(
+            @RequestParam(required = false) Long excludeId,
+            @RequestParam(defaultValue = "10") int limit) {
+        try {
+            Long userId = SecurityUtils.getUserId();
+            List<Map<String, Object>> courses = courseRecommendationService.getRecommendedCourses(userId, excludeId,
+                    limit);
+            return Result.success(courses);
+        } catch (Exception e) {
+            log.error("获取推荐课程失败:", e);
+            return Result.success(new java.util.ArrayList<>());
         }
     }
 }

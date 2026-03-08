@@ -85,13 +85,13 @@ public interface StatisticsMapper {
          */
         @Select("SELECT COUNT(*) FROM activity_registration r " +
                         "JOIN activity a ON r.activity_id = a.id " +
-                        "WHERE a.organizer_id = #{orgId} AND r.status = 1 AND r.is_deleted = 0")
+                        "WHERE a.organizer_id = #{orgId} AND r.status = 0 AND r.is_deleted = 0")
         int countOrgPendingAudits(Long orgId);
 
         /**
          * 统计组织者进行中活动数
          */
-        @Select("SELECT COUNT(*) FROM activity WHERE organizer_id = #{orgId} AND status = 1 AND is_deleted = 0")
+        @Select("SELECT COUNT(*) FROM activity WHERE organizer_id = #{orgId} AND status IN (2, 3) AND is_deleted = 0")
         int countOrgActiveActivities(Long orgId);
 
         /**
@@ -99,7 +99,7 @@ public interface StatisticsMapper {
          */
         @Select("SELECT COUNT(*) FROM activity_registration r " +
                         "JOIN activity a ON r.activity_id = a.id " +
-                        "WHERE a.organizer_id = #{orgId} AND r.status = 2 AND r.is_deleted = 0")
+                        "WHERE a.organizer_id = #{orgId} AND r.status IN (2, 3) AND r.is_deleted = 0")
         int countOrgTotalServiceCount(Long orgId);
 
         /**
@@ -111,10 +111,11 @@ public interface StatisticsMapper {
         /**
          * 获取组织者进行中的活动列表
          */
-        @Select("SELECT id, title, " +
+        @Select("SELECT id, title, cover_image as coverImage, " +
                         "(SELECT COUNT(*) FROM activity_registration WHERE activity_id = a.id AND is_deleted = 0) as current, "
                         +
-                        "max_participants as total, '进行中' as status, 'primary' as statusType, " +
+                        "max_participants as total, status, " +
+                        "CASE WHEN status = 2 THEN 'success' ELSE 'primary' END as statusType, " +
                         "DATE_FORMAT(create_time, '%Y-%m-%d') as createTime " +
                         "FROM activity a WHERE organizer_id = #{orgId} AND status IN (2, 3) AND is_deleted = 0 " +
                         "ORDER BY create_time DESC LIMIT 3")
@@ -123,7 +124,7 @@ public interface StatisticsMapper {
         /**
          * 获取组织者最新评价
          */
-        @Select("SELECT r.id, COALESCE(u.nickname, v.name, '匿名用户') as nickname, u.avatar, r.score as rating, r.content, "
+        @Select("SELECT r.id, COALESCE(v.name, u.username, '匿名用户') as nickname, u.avatar, r.score as rating, r.content, "
                         +
                         "DATE_FORMAT(r.create_time, '%Y-%m-%d %H:%i') as time " +
                         "FROM activity_review r " +

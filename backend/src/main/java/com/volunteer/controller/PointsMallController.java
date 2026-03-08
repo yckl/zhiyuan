@@ -38,9 +38,10 @@ public class PointsMallController {
     @Operation(summary = "商品列表", description = "获取积分商城商品列表")
     public Result<List<MallGoods>> getGoodsList(
             @Parameter(description = "分类") @RequestParam(required = false) String category,
-            @Parameter(description = "状态: 0-下架, 1-上架") @RequestParam(required = false) Integer status) {
+            @Parameter(description = "状态: 0-下架, 1-上架") @RequestParam(required = false) Integer status,
+            @Parameter(description = "搜索名称") @RequestParam(required = false) String name) {
         try {
-            List<MallGoods> list = mallService.getGoodsList(category, status);
+            List<MallGoods> list = mallService.getGoodsList(category, status, name);
             return Result.success(list);
         } catch (Exception e) {
             log.error("获取商品列表失败:", e);

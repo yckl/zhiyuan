@@ -1,16 +1,20 @@
 <template>
-  <div class="register-page">
-    <div class="register-bg">
-      <div class="blob blob-1"></div>
-      <div class="blob blob-2"></div>
-      <div class="blob blob-3"></div>
-    </div>
-    <div class="register-container">
+  <div class="register-wrapper">
+    <!-- 响应式背景资产 (使用 img 标签提高加载优先级并防止白闪) -->
+    <img 
+      :src="bgSrc" 
+      class="auth-bg" 
+      :class="{ 'is-loaded': bgLoaded }"
+      @load="bgLoaded = true"
+      alt="background"
+    >
+    
+    <div class="glass-card">
+      <!-- ====== SVG 吉祥物 ====== -->
+      <VolunteerMascot ref="mascotRef" />
+
       <div class="register-header">
-        <div class="logo-wrapper">
-          <el-icon :size="40" class="logo-icon"><Aim /></el-icon>
-        </div>
-        <h1>志愿者注册</h1>
+        <h1>志愿者注</h1>
         <p>加入我们，成为光荣的志愿者</p>
       </div>
 
@@ -25,12 +29,26 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="学号/用户名" prop="username">
-              <el-input v-model="formData.username" placeholder="请输入学号" :prefix-icon="CreditCard" />
+              <el-input 
+                v-model="formData.username" 
+                placeholder="请输入学号" 
+                :prefix-icon="CreditCard"
+                @focus="onInputFocus(formData.username)"
+                @blur="onInputBlur"
+                @input="onTypingInput(formData.username)"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="真实姓名" prop="name">
-              <el-input v-model="formData.name" placeholder="请输入真实姓名" :prefix-icon="User" />
+              <el-input 
+                v-model="formData.name" 
+                placeholder="请输入真实姓名" 
+                :prefix-icon="User"
+                @focus="onInputFocus(formData.name)"
+                @blur="onInputBlur"
+                @input="onTypingInput(formData.name)"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -38,12 +56,28 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="密码" prop="password">
-              <el-input v-model="formData.password" type="password" placeholder="请输入密码" :prefix-icon="Lock" show-password />
+              <el-input 
+                v-model="formData.password" 
+                type="password" 
+                placeholder="请输入密码" 
+                :prefix-icon="Lock" 
+                show-password 
+                @focus="onPasswordFocus"
+                @blur="onPasswordBlur"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="确认密码" prop="confirmPassword">
-              <el-input v-model="formData.confirmPassword" type="password" placeholder="请再次输入密码" :prefix-icon="Lock" show-password />
+              <el-input 
+                v-model="formData.confirmPassword" 
+                type="password" 
+                placeholder="请再次输入密码" 
+                :prefix-icon="Lock" 
+                show-password 
+                @focus="onPasswordFocus"
+                @blur="onPasswordBlur"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -51,7 +85,14 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="学院" prop="college">
-              <el-select v-model="formData.college" placeholder="请选择学院" @change="handleCollegeChange" style="width: 100%">
+              <el-select 
+                v-model="formData.college" 
+                placeholder="请选择学院" 
+                @change="handleCollegeChange" 
+                @focus="onInputFocus(formData.college)"
+                @blur="onInputBlur"
+                style="width: 100%"
+              >
                 <template #prefix>
                   <el-icon><School /></el-icon>
                 </template>
@@ -66,7 +107,14 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="专业" prop="major">
-              <el-select v-model="formData.major" placeholder="请选择专业" :disabled="!formData.college" style="width: 100%">
+              <el-select 
+                v-model="formData.major" 
+                placeholder="请选择专业" 
+                :disabled="!formData.college" 
+                @focus="onInputFocus(formData.major)"
+                @blur="onInputBlur"
+                style="width: 100%"
+              >
                 <template #prefix>
                   <el-icon><Reading /></el-icon>
                 </template>
@@ -83,20 +131,34 @@
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="手机号" prop="phone">
-              <el-input v-model="formData.phone" placeholder="请输入手机号" :prefix-icon="Phone" />
+            <el-form-item label="手机号码" prop="phone">
+              <el-input 
+                v-model="formData.phone" 
+                placeholder="请输入手机号" 
+                :prefix-icon="Phone" 
+                @focus="onInputFocus(formData.phone)"
+                @blur="onInputBlur"
+                @input="onTypingInput(formData.phone)"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="邮箱">
-              <el-input v-model="formData.email" placeholder="请输入邮箱 (选填)" :prefix-icon="Message" />
+              <el-input 
+                v-model="formData.email" 
+                placeholder="请输入邮箱(选填)" 
+                :prefix-icon="Message" 
+                @focus="onInputFocus(formData.email)"
+                @blur="onInputBlur"
+                @input="onTypingInput(formData.email)"
+              />
             </el-form-item>
           </el-col>
         </el-row>
 
         <div class="terms-row">
           <el-checkbox v-model="agreeTerms">
-            我已阅读并同意 <el-link type="primary" :underline="false">《用户服务协议》</el-link>
+            我已阅读并同意<el-link type="primary" :underline="false">《用户服务协议》</el-link>
           </el-checkbox>
         </div>
 
@@ -113,7 +175,7 @@
         </el-form-item>
 
         <div class="register-footer">
-          <span>已有账号？</span>
+          <span>已有账号</span>
           <el-link type="primary" @click="router.push('/login')">立即登录</el-link>
         </div>
       </el-form>
@@ -122,11 +184,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, FormInstance, FormRules } from 'element-plus'
-import { User, Lock, Phone, Message, CreditCard, School, Reading, Aim } from '@element-plus/icons-vue'
+import { User, Lock, Phone, Message, CreditCard, School, Reading } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
+import VolunteerMascot from '@/components/VolunteerMascot.vue'
+
+// 导入背景图片资源，确保 Vite 正确解析
+import pcBg from '@/assets/images/pc-login-bg.jpg'
+import mobileBg from '@/assets/images/mobile-login-bg.jpg'
 
 const router = useRouter()
 
@@ -134,9 +201,19 @@ const formRef = ref<FormInstance>()
 const loading = ref(false)
 const agreeTerms = ref(false)
 
+// 响应式判断手机端
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value <= 768)
+const handleResize = () => { windowWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', handleResize))
+onUnmounted(() => window.removeEventListener('resize', handleResize))
+
+const bgSrc = computed(() => isMobile.value ? mobileBg : pcBg)
+const bgLoaded = ref(false)
+
 const COLLEGE_MAJORS = {
   '计算机学院': ['软件工程', '计算机科学', '人工智能'],
-  '电子工程学院': ['电子信息', '通信工程', '微电子'],
+  '电子工程学院': ['电子信息', '通信工程', '微电子学'],
   '机械工程学院': ['机械设计', '自动化', '车辆工程'],
   '经济管理学院': ['工商管理', '会计学', '金融学'],
   '外国语学院': ['英语', '日语', '翻译'],
@@ -174,7 +251,7 @@ const validatePhone = (_rule: any, value: string, callback: any) => {
   if (!value) {
     callback(new Error('请输入手机号'))
   } else if (!/^1[3-9]\d{9}$/.test(value)) {
-    callback(new Error('请输入正确的手机号'))
+    callback(new Error('请输入正确的手机号码'))
   } else {
     callback()
   }
@@ -182,16 +259,16 @@ const validatePhone = (_rule: any, value: string, callback: any) => {
 
 const rules: FormRules = {
   username: [
-    { required: true, message: '请输入学号/用户名', trigger: 'blur' },
-    { min: 4, max: 30, message: '长度为4-30个字符', trigger: 'blur' }
+    { required: true, message: '请输入学号或用户名', trigger: 'blur' },
+    { min: 4, max: 30, message: '长度在4-30个字符之间', trigger: 'blur' }
   ],
   name: [
     { required: true, message: '请输入真实姓名', trigger: 'blur' },
-    { min: 2, max: 20, message: '姓名长度2-20个字符', trigger: 'blur' }
+    { min: 2, max: 20, message: '姓名长度在2-20个字符之间', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20个字符', trigger: 'blur' }
+    { min: 6, max: 20, message: '密码长度在6-20个字符之间', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
@@ -230,149 +307,140 @@ const handleRegister = async () => {
     }
   })
 }
+
+// ==================== 吉祥物交?====================
+const mascotRef = ref<InstanceType<typeof VolunteerMascot>>()
+let isPasswordFocused = false
+
+const onInputFocus = (val: string) => {
+  mascotRef.value?.setTyping(val ? val.length : 0)
+}
+
+const onTypingInput = (val: string) => {
+  mascotRef.value?.setTyping(val ? val.length : 0)
+}
+
+const onInputBlur = () => {
+  if (!isPasswordFocused) {
+    mascotRef.value?.setIdle()
+  }
+}
+
+const onPasswordFocus = () => {
+  isPasswordFocused = true
+  mascotRef.value?.setPassword()
+}
+
+const onPasswordBlur = () => {
+  isPasswordFocused = false
+  mascotRef.value?.setIdle()
+}
+
 </script>
 
 <style lang="scss" scoped>
-.register-page {
+/* ====== Premium 背景与布局 (与登录页同步) ====== */
+.register-wrapper {
   min-height: 100vh;
+  width: 100vw;
   display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
-  overflow: hidden;
-  padding: 40px 20px;
-  background-color: #f0f7f6;
-}
-
-.register-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #e0f2f1 0%, #00BFA6 100%);
-  z-index: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #334155; /* 深蓝灰色底色 */
+  justify-content: center;
+  align-items: center;
+  padding: 64px 24px;
   
-  .blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    z-index: 0;
-    opacity: 0.5;
-    animation: move 20s infinite alternate;
-  }
-
-  .blob-1 {
-    width: 600px;
-    height: 600px;
-    background: #4db6ac;
-    top: -200px;
-    right: -100px;
-  }
-
-  .blob-2 {
-    width: 500px;
-    height: 500px;
-    background: #80cbc4;
-    bottom: -150px;
-    left: -100px;
-    animation-delay: -5s;
-  }
-
-  .blob-3 {
-    width: 300px;
-    height: 300px;
-    background: #b2dfdb;
-    top: 40%;
-    left: 20%;
-    animation-delay: -10s;
+  @media (max-width: 768px) {
+    align-items: flex-end;
+    padding-bottom: 5vh;
+    padding-top: 5vh;
   }
 }
 
-@keyframes move {
-  0% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(40px, -60px) scale(1.1); }
-  66% { transform: translate(-30px, 30px) scale(0.9); }
-  100% { transform: translate(0, 0) scale(1); }
+.auth-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease-in;
+  pointer-events: none;
+  
+  &.is-loaded {
+    opacity: 1;
+  }
 }
 
-.register-container {
-  width: 600px;
-  padding: 40px 48px;
-  background: rgba(255, 255, 255, 0.8);
+/* ====== Premium Glassmorphism 卡片 ====== */
+.glass-card {
+  width: 680px;
+  max-width: 100%;
+  padding: 10px 48px 40px;
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 28px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 24px;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 1;
-  animation: scaleIn 0.6s cubic-bezier(0.165, 0.84, 0.44, 1);
+  animation: cardFlyIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  @media (max-width: 768px) {
+    width: 92%;
+    background: rgba(255, 255, 255, 0.85);
+    padding: 16px 24px 32px;
+  }
 }
 
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+@keyframes cardFlyIn {
+  from { opacity: 0; transform: translateY(60px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .register-header {
   text-align: center;
-  margin-bottom: 32px;
-
-  .logo-wrapper {
-    width: 70px;
-    height: 70px;
-    background: linear-gradient(135deg, #00BFA6, #4db6ac);
-    border-radius: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-    box-shadow: 0 8px 16px rgba(0, 191, 166, 0.25);
-    
-    .logo-icon {
-      color: white;
-    }
-  }
+  margin-bottom: 24px;
 
   h1 {
-    margin: 0 0 6px;
+    margin: 0 0 4px;
     font-size: 24px;
-    color: #2c3e50;
-    font-weight: 700;
+    color: #1a1a1a;
+    font-weight: 800;
   }
 
   p {
-    color: #7f8c8d;
-    font-size: 14px;
+    color: #999;
+    font-size: 13px;
+    letter-spacing: 0.5px;
   }
 }
 
+/* ====== 表单美化 ====== */
 .register-form {
   :deep(.el-form-item__label) {
-    font-weight: 600;
-    color: #4a5568;
+    font-weight: 700;
+    color: #444;
     padding-bottom: 4px;
+    font-size: 13px;
   }
 
   :deep(.el-input__wrapper), :deep(.el-select__wrapper) {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.04);
     border-radius: 12px;
     box-shadow: none !important;
-    border: 1.5px solid #edf2f7;
+    border: none;
     transition: all 0.3s;
     padding: 2px 12px;
 
     &.is-focus, &:hover {
-      border-color: #00BFA6;
       background: white;
-      box-shadow: 0 0 0 4px rgba(0, 191, 166, 0.08) !important;
+      box-shadow: 0 0 0 1px #1DE9B6, 0 0 0 3px rgba(29, 233, 182, 0.15) !important;
     }
   }
 
@@ -380,49 +448,73 @@ const handleRegister = async () => {
     margin: 8px 0 24px;
     
     :deep(.el-checkbox__label) {
-      color: #718096;
+      color: #999;
       font-size: 13px;
     }
     
     .el-link {
       font-size: 13px;
-      color: #00BFA6;
-      font-weight: 600;
-      vertical-align: baseline;
+      color: #00B4DB;
+      font-weight: 700;
+      &:hover { color: #1DE9B6; }
+    }
+    
+    :deep(.el-checkbox.is-checked .el-checkbox__inner) {
+      background-color: #1DE9B6;
+      border-color: #1DE9B6;
     }
   }
 
   .register-btn {
     width: 100%;
-    height: 50px;
+    height: 48px;
     font-size: 16px;
-    font-weight: 600;
-    background: linear-gradient(135deg, #00BFA6, #26a69a);
+    font-weight: 700;
+    background: linear-gradient(135deg, #1DE9B6 0%, #00B4DB 100%);
     border: none;
     border-radius: 14px;
-    transition: all 0.3s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(29, 233, 182, 0.2);
+    color: white;
 
     &:hover:not(:disabled) {
+      opacity: 0.9;
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(0, 191, 166, 0.3);
+      box-shadow: 0 8px 25px rgba(29, 233, 182, 0.3);
     }
     
     &:active:not(:disabled) {
       transform: translateY(0);
+      transform: scale(0.98);
     }
   }
 }
 
 .register-footer {
   text-align: center;
-  color: #718096;
+  color: #aaa;
   font-size: 14px;
   margin-top: 20px;
   
   .el-link {
-    font-weight: 600;
-    color: #00BFA6;
+    font-weight: 700;
+    color: #1DE9B6;
     margin-left: 4px;
+    &:hover { color: #00B4DB; }
+  }
+}
+
+@media (max-width: 768px) {
+  :deep(.el-row) {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  :deep(.el-col) {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 }
 </style>

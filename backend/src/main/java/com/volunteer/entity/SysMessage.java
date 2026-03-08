@@ -53,4 +53,5 @@ public class SysMessage implements Serializable {
     public static final String TYPE_NOTICE = "NOTICE";
     public static final String TYPE_ACTIVITY = "ACTIVITY";
     public static final String TYPE_MALL = "MALL";
+    public static final String TYPE_INTERACTION = "INTERACTION";
 }

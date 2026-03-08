@@ -1,12 +1,15 @@
 <template>
   <div class="app-container">
-    <el-card>
-      <div slot="header" class="clearfix">
-        <span>待审核活动</span>
-        <el-button style="float: right; padding: 3px 0" type="text" @click="fetchData">刷新</el-button>
-      </div>
+    <el-card class="main-card">
+      <template #header>
+        <div class="card-header">
+          <span>待审核活动</span>
+          <el-button link type="primary" @click="fetchData">刷新</el-button>
+        </div>
+      </template>
 
-      <el-table v-loading="loading" :data="list" border style="margin-top: 10px">
+      <!-- Desktop Table -->
+      <el-table v-loading="loading" :data="list" border style="margin-top: 10px" class="hidden-sm-and-down">
         <el-table-column label="封面" width="100" align="center">
            <template #default="scope">
               <el-image 
@@ -14,8 +17,11 @@
                  :src="scope.row.coverImage" 
                  fit="cover"
                  :preview-src-list="[scope.row.coverImage]"
-                 preview-teleported 
-              />
+                 preview-teleported>
+  <template #error>
+    <img :src="'/default-cover.jpg'" style="width:100%;height:100%;object-fit:cover"/>
+  </template>
+</el-image>
            </template>
         </el-table-column>
         <el-table-column prop="title" label="活动标题" min-width="200" show-overflow-tooltip />
@@ -31,15 +37,48 @@
         </el-table-column>
       </el-table>
 
-       <div class="pagination-container">
-          <el-pagination
-             v-model:current-page="queryParams.page"
-             v-model:page-size="queryParams.size"
-             :total="total"
-             layout="total, prev, pager, next"
-             @current-change="fetchData"
-          />
-       </div>
+      <!-- Mobile Card List -->
+      <div class="hidden-md-and-up mobile-card-list">
+        <div v-for="item in list" :key="item.id" class="mobile-card">
+           <div class="card-content">
+              <el-image 
+                 class="card-img"
+                 :src="item.coverImage" 
+                 fit="cover">
+  <template #error>
+    <img :src="'/default-cover.jpg'" style="width:100%;height:100%;object-fit:cover"/>
+  </template>
+</el-image>
+              <div class="card-info">
+                 <div class="card-title">{{ item.title }}</div>
+                 <div class="card-meta">
+                    <span>{{ item.organizerName }}</span>
+                    <span>{{ formatTime(item.createTime) }}</span>
+                 </div>
+              </div>
+           </div>
+           <div class="card-footer">
+              <el-button type="success" size="small" @click="handleAudit(item, 1)">通过</el-button>
+              <el-button type="danger" size="small" @click="handleReject(item)">拒绝</el-button>
+           </div>
+        </div>
+        <el-empty v-if="!loading && list.length === 0" description="暂无待审核活动" />
+      </div>
+
+        <div class="pagination-container">
+           <el-pagination
+              v-model:current-page="queryParams.page"
+              v-model:page-size="queryParams.size"
+              :total="total"
+              :page-sizes="[10, 20, 50]"
+              :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+              :pager-count="isMobile ? 5 : 7"
+              :small="isMobile"
+              background
+              @size-change="fetchData"
+              @current-change="fetchData"
+           />
+        </div>
     </el-card>
 
     <!-- Reject Dialog -->
@@ -54,13 +93,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import request from '@/utils/request'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const windowWidth = ref(window.innerWidth)
+const isMobile = ref(window.innerWidth < 768)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+  isMobile.value = windowWidth.value < 768
+}
+
+interface Activity {
+  id: number
+  title: string
+  coverImage: string
+  organizerName: string
+  createTime: string
+}
+
 const loading = ref(false)
-const list = ref([])
+const list = ref<Activity[]>([])
 const total = ref(0)
 const queryParams = reactive({
     page: 1,
@@ -89,12 +144,14 @@ const formatTime = (t: string) => dayjs(t).format('YYYY-MM-DD HH:mm')
 
 const handleAudit = async (row: any, pass: number) => {
     try {
-        await ElMessageBox.confirm(`确认通过活动 "${row.title}" 吗?`, '提示', { type: 'success' })
+        await ElMessageBox.confirm(`确认${pass === 1 ? '通过' : '拒绝'}活动 "${row.title}" ?`, '提示', { 
+            type: pass === 1 ? 'success' : 'warning' 
+        })
         await request.put('/admin/activity/audit', {
             id: row.id,
-            pass: true
+            pass: pass === 1
         })
-        ElMessage.success('已通过')
+        ElMessage.success(pass === 1 ? '已通过' : '已拒绝')
         fetchData()
     } catch {}
 }
@@ -119,10 +176,116 @@ const submitReject = async () => {
     } catch {}
 }
 
-onMounted(fetchData)
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  fetchData()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>
-.app-container { padding: 20px; }
-.pagination-container { margin-top: 20px; display: flex; justify-content: flex-end; }
+.app-container { 
+  padding: 20px;
+  background: var(--bg-page);
+  min-height: calc(100vh - 84px);
+}
+
+.main-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-primary);
+  font-weight: bold;
+}
+
+.pagination-container { 
+  margin-top: 20px; 
+  display: flex; 
+  justify-content: flex-end; 
+}
+
+@media only screen and (max-width: 768px) {
+  .app-container { padding: 10px; }
+  
+  .mobile-card-list {
+     background: var(--bg-page);
+     padding: 4px;
+  }
+  
+  .mobile-card {
+     background: var(--bg-card);
+     border-radius: 8px;
+     padding: 12px;
+     margin-bottom: 12px;
+     box-shadow: var(--shadow-light);
+     border: 1px solid var(--border-light);
+  }
+  
+  .card-content {
+     display: flex;
+     gap: 12px;
+     margin-bottom: 12px;
+  }
+  
+  .card-img {
+     width: 80px;
+     height: 60px;
+     border-radius: 4px;
+     flex-shrink: 0;
+  }
+  
+  .card-info {
+     flex: 1;
+     display: flex;
+     flex-direction: column;
+     justify-content: space-between;
+  }
+  
+  .card-title {
+     font-size: 15px;
+     font-weight: bold;
+     color: var(--text-primary);
+     margin-bottom: 4px;
+     display: -webkit-box;
+     -webkit-line-clamp: 2;
+     line-clamp: 2;
+     -webkit-box-orient: vertical;
+     overflow: hidden;
+  }
+  
+  .card-meta {
+     font-size: 12px;
+     color: var(--text-muted);
+     display: flex;
+     flex-direction: column;
+     gap: 2px;
+  }
+  
+  .card-footer {
+     border-top: 1px solid var(--border-light);
+     padding-top: 10px;
+     display: flex;
+     gap: 10px;
+  }
+  
+  .card-footer button {
+     flex: 1;
+     margin: 0;
+     height: 32px;
+     border-radius: 4px;
+  }
+  
+  .pagination-container {
+     justify-content: center;
+  }
+}
 </style>

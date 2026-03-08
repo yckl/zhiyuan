@@ -5,8 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>校园志愿者管理系统</title>
-    <script type="module" crossorigin src="/assets/index-BI8yYFW8.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-NBJN5jo1.css">
+    <script>
+      (function() {
+        const theme = localStorage.getItem('theme-mode') || 'light';
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-C1E1J4Jo.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CGq1aE2e.css">
   </head>
   <body>
     <div id="app"></div>

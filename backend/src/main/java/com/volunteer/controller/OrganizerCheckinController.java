@@ -64,19 +64,20 @@ public class OrganizerCheckinController {
                 activityMapper.updateById(activity);
             }
 
-            // 生成签到Token (简单实现：activityId + timestamp + 随机数的Base64编码)
+            // 生成签到Token (包含 activityId + expireAt + nonce)
             long timestamp = System.currentTimeMillis();
-            long expireAt = timestamp + 60000; // 1分钟后过期
+            long expireAt = timestamp + 30000; // 30秒后过期，防止截图代签 (时效锁)
             String rawToken = String.format("%d:%d:%s", activityId, expireAt,
                     UUID.randomUUID().toString().substring(0, 8));
             String token = Base64.getEncoder().encodeToString(rawToken.getBytes(StandardCharsets.UTF_8));
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("token", token);
-            result.put("checkinCode", activity.getCheckinCode()); // 返回签到码
+            result.put("checkinCode", activity.getCheckinCode()); // 6位大字备用数字码
             result.put("activityId", activityId);
             result.put("expireAt", expireAt);
-            result.put("qrcodeContent", "volunteer://checkin?token=" + token);
+            result.put("refreshInterval", 30000);
+            result.put("qrcodeContent", "volunteer://checkin?token=" + token + "&activityId=" + activityId);
 
             return Result.success(result);
         } catch (Exception e) {
@@ -102,10 +103,11 @@ public class OrganizerCheckinController {
                 return Result.error("活动不存在");
             }
 
-            // 查询已通过审核的报名 (status = 1)
+            // 查询已通过审核 (1) 或已签到 (2) 的报名
             LambdaQueryWrapper<ActivityRegistration> query = new LambdaQueryWrapper<>();
             query.eq(ActivityRegistration::getActivityId, activityId)
-                    .eq(ActivityRegistration::getStatus, 1)
+                    .and(wrapper -> wrapper.eq(ActivityRegistration::getStatus, 1)
+                            .or().eq(ActivityRegistration::getStatus, 2))
                     .eq(ActivityRegistration::getIsDeleted, 0);
             List<ActivityRegistration> registrations = registrationMapper.selectList(query);
 
@@ -153,99 +155,148 @@ public class OrganizerCheckinController {
     }
 
     /**
-     * 人工补签
+     * 撤回核销
      */
-    @PostMapping("/manual")
-    @Operation(summary = "人工补签", description = "组织者手动为志愿者签到")
-    public Result<Void> manualCheckin(@RequestBody Map<String, Object> params) {
+    @PostMapping("/rollback/{id}")
+    @Operation(summary = "撤回核销", description = "将已签到状态回滚为已通过状态")
+    public Result<Void> rollbackCheckin(@PathVariable Long id) {
         Long userId = SecurityUtils.getUserId();
-        if (userId == null) {
-            return Result.unauthorized("请先登录");
-        }
-
         try {
-            Long registrationId = Long.valueOf(params.get("registrationId").toString());
+            ActivityRegistration registration = registrationMapper.selectById(id);
+            if (registration == null)
+                return Result.error("记录不存在");
 
-            // 获取报名记录
-            ActivityRegistration registration = registrationMapper.selectById(registrationId);
-            if (registration == null) {
-                return Result.error("报名记录不存在");
-            }
-
-            // 验证活动归属
+            // 权限校验
             Activity activity = activityMapper.selectById(registration.getActivityId());
-            if (activity == null || !activity.getOrganizerId().equals(userId)) {
-                return Result.error("无权操作此活动");
+            if (activity == null || (!SecurityUtils.isAdmin() && !activity.getOrganizerId().equals(userId))) {
+                return Result.error("无权操作");
             }
 
-            // 检查是否已签到
-            if (registration.getSignInTime() != null) {
-                return Result.error("该志愿者已签到");
+            if (registration.getStatus() != 2) {
+                return Result.error("该记录非签到状态，无法撤回");
             }
 
-            // 执行签到
-            registration.setSignInTime(LocalDateTime.now());
-            registration.setStatus(2); // 已签到
+            // 执行撤回
+            registration.setSignInTime(null);
+            registration.setStatus(1); // 回退到已通过
             registrationMapper.updateById(registration);
 
-            log.info("人工补签成功: registrationId={}, operator={}", registrationId, userId);
-            return Result.success("签到成功", null);
+            log.info("撤回核销成功: id={}, operator={}", id, userId);
+            return Result.success("撤回成功", null);
         } catch (Exception e) {
-            log.error("人工补签失败: {}", e.getMessage());
-            return Result.error("签到失败：" + e.getMessage());
+            return Result.error("撤回失败");
         }
     }
 
     /**
-     * 扫码签到验证
+     * 人工补签/管理员代签
+     */
+    @PostMapping("/manual")
+    @Operation(summary = "人工核销", description = "管理员或组织者手动为志愿者核销")
+    public Result<Void> manualCheckin(@RequestBody Map<String, Object> params) {
+        try {
+            Long registrationId = Long.parseLong(params.get("registrationId").toString());
+            ActivityRegistration reg = registrationMapper.selectById(registrationId);
+
+            if (reg == null)
+                return Result.error("记录不存在");
+            if (reg.getStatus() == 2)
+                return Result.error("已核销，请勿重复操作");
+            if (reg.getStatus() != 1)
+                return Result.error("当前报名状态不支持核销");
+
+            reg.setStatus(2);
+            reg.setSignInTime(LocalDateTime.now());
+            registrationMapper.updateById(reg);
+
+            log.info("人工核销成功: id={}, operator={}", registrationId, SecurityUtils.getUserId());
+            return Result.success("人工核销成功", null);
+        } catch (Exception e) {
+            return Result.error("人工核销失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取实时进度统计
+     */
+    @GetMapping("/stats/{activityId}")
+    @Operation(summary = "实时签到统计", description = "获取活动签到人数和总人数")
+    public Result<Map<String, Object>> getCheckinStats(@PathVariable Long activityId) {
+        try {
+            LambdaQueryWrapper<ActivityRegistration> query = new LambdaQueryWrapper<>();
+            query.eq(ActivityRegistration::getActivityId, activityId)
+                    .in(ActivityRegistration::getStatus, 1, 2)
+                    .eq(ActivityRegistration::getIsDeleted, 0);
+
+            List<ActivityRegistration> list = registrationMapper.selectList(query);
+            long total = list.size();
+            long checked = list.stream().filter(r -> r.getStatus() == 2).count();
+
+            Map<String, Object> res = new HashMap<>();
+            res.put("total", total);
+            res.put("checked", checked);
+            res.put("progress", total == 0 ? 0 : (double) checked / total * 100);
+
+            return Result.success(res);
+        } catch (Exception e) {
+            return Result.error("获取统计失败");
+        }
+    }
+
+    /**
+     * 扫码签到验证 (核心闭环)
      */
     @PostMapping("/verify")
-    @Operation(summary = "扫码签到验证", description = "验证签到Token并执行签到")
+    @Operation(summary = "扫码核销验证", description = "三重复核：活动锁、身份锁、时效锁")
     public Result<Void> verifyCheckin(@RequestBody Map<String, Object> params) {
         try {
             String token = params.get("token").toString();
-            Long volunteerId = Long.valueOf(params.get("volunteerId").toString());
+            Long volunteerId = SecurityUtils.getUserId(); // 从 Token 获取当前扫码学生的 ID (身份锁)
 
-            // 解码Token
+            if (volunteerId == null)
+                return Result.unauthorized("未授权");
+
+            // 1. 时效锁：解码Token并检查过期
             String decoded = new String(Base64.getDecoder().decode(token), StandardCharsets.UTF_8);
             String[] parts = decoded.split(":");
-            if (parts.length != 3) {
-                return Result.error("无效的签到码");
-            }
+            if (parts.length != 3)
+                return Result.error("核销码无效");
 
             long activityId = Long.parseLong(parts[0]);
             long expireAt = Long.parseLong(parts[1]);
 
-            // 检查是否过期
             if (System.currentTimeMillis() > expireAt) {
-                return Result.error("签到码已过期，请刷新二维码");
+                return Result.error("核销码已过期，请使用最新动态码");
             }
 
-            // 查找该志愿者的报名记录
+            // 2. 活动与身份锁：查找该志愿者的正向报名记录
             LambdaQueryWrapper<ActivityRegistration> query = new LambdaQueryWrapper<>();
             query.eq(ActivityRegistration::getActivityId, activityId)
                     .eq(ActivityRegistration::getVolunteerId, volunteerId)
-                    .eq(ActivityRegistration::getStatus, 1) // 已通过审核
                     .eq(ActivityRegistration::getIsDeleted, 0);
+
             ActivityRegistration registration = registrationMapper.selectOne(query);
 
             if (registration == null) {
-                return Result.error("未找到有效的报名记录");
+                return Result.error("您不在本次活动的名单内 (身份错配)");
             }
 
-            if (registration.getSignInTime() != null) {
-                return Result.error("您已签到，无需重复签到");
+            if (registration.getStatus() != 1) { // 必须是确认状态
+                if (registration.getStatus() == 2)
+                    return Result.error("您已完成核销，请勿重复操作");
+                return Result.error("您的报名状态暂不支持核销 (状态: " + registration.getStatus() + ")");
             }
 
-            // 执行签到
+            // 3. 执行核销逻辑 (闭环更新 volunteer_system 表，此处为 activity_registration)
             registration.setSignInTime(LocalDateTime.now());
-            registration.setStatus(2);
+            registration.setStatus(2); // 更新为已核销/已签到
             registrationMapper.updateById(registration);
 
-            return Result.success("签到成功", null);
+            log.info("扫码核销成功: activity={}, volunteer={}", activityId, volunteerId);
+            return Result.success("核销成功！准时到场，服从安排。", null);
         } catch (Exception e) {
-            log.error("扫码签到验证失败: {}", e.getMessage());
-            return Result.error("签到失败：" + e.getMessage());
+            log.error("扫码核销异常: {}", e.getMessage());
+            return Result.error("核销失败，请联系现场组织者");
         }
     }
 }

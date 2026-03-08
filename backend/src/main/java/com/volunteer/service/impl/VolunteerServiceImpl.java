@@ -57,13 +57,32 @@ public class VolunteerServiceImpl implements VolunteerService {
         VolunteerDTO dto = new VolunteerDTO();
         BeanUtils.copyProperties(volunteer, dto);
 
-        // 统计服务次数 (状态为3:已完成)
-        Long serviceCount = registrationMapper.selectCount(
-                new LambdaQueryWrapper<ActivityRegistration>()
-                        .eq(ActivityRegistration::getVolunteerId, volunteer.getId())
-                        .eq(ActivityRegistration::getStatus, 3)
-                        .eq(ActivityRegistration::getIsDeleted, 0));
-        dto.setServiceCount(serviceCount.intValue());
+        // 实时统计
+        LambdaQueryWrapper<ActivityRegistration> statsQuery = new LambdaQueryWrapper<ActivityRegistration>()
+                .eq(ActivityRegistration::getVolunteerId, volunteer.getId())
+                .eq(ActivityRegistration::getStatus, 3) // 仅统计“已完成”
+                .eq(ActivityRegistration::getIsDeleted, 0);
+
+        List<ActivityRegistration> completedRegistrations = registrationMapper.selectList(statsQuery);
+
+        // 1. 服务次数统计 (仅统计已完成成功的次数)
+        int serviceCount = completedRegistrations.size();
+
+        // 2. 时长与积分统计 (仅统计已完成状态为3的记录)
+        BigDecimal totalHours = completedRegistrations.stream()
+                .map(r -> r.getActualHours() != null ? r.getActualHours() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        int totalPoints = completedRegistrations.stream()
+                .mapToInt(r -> r.getActualPoints() != null ? r.getActualPoints() : 0)
+                .sum();
+
+        dto.setServiceCount(serviceCount);
+        dto.setTotalHours(totalHours);
+        dto.setTotalPoints(totalPoints);
+        // Available points remain from the volunteer table as they are handled by
+        // settlement/mall
+        dto.setAvailablePoints(volunteer.getAvailablePoints());
 
         if (sysUser != null) {
             dto.setUsername(sysUser.getUsername());

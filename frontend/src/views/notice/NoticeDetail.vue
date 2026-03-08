@@ -10,7 +10,7 @@
 
     <!-- 公告内容卡片 -->
     <div class="notice-card" v-loading="loading">
-      <!-- 标题区 -->
+      <!-- 标题 -->
       <div class="notice-header">
         <div class="tags" v-if="notice.isTop || notice.type">
           <el-tag v-if="notice.isTop" type="danger" size="small" effect="dark">
@@ -39,7 +39,7 @@
 
       <el-divider />
 
-      <!-- 正文区 -->
+      <!-- 正文 -->
       <div class="notice-content" v-html="notice.content || defaultContent"></div>
 
       <!-- 底部操作 -->
@@ -95,18 +95,18 @@ const notice = ref<Notice>({
 })
 const isCollected = ref(false)
 
-// 默认富文本内容
+// 默认富文本内?
 const defaultContent = `
-<p>尊敬的志愿者同学们：</p>
+<p>尊敬的志愿者同学们</p>
 
-<p>为进一步提升我校志愿服务水平，丰富志愿者的服务经验，现将有关事项通知如下：</p>
+<p>为进一步提升我校志愿服务水平，丰富志愿者的服务经验，现将有关事项通知如下</p>
 
 <h3>一、活动背景</h3>
 <p>志愿服务是培养大学生社会责任感、奉献精神的重要途径。本次活动旨在通过系统化的培训和实践，提升志愿者的专业服务能力。</p>
 
 <h3>二、活动安排</h3>
 <ul>
-  <li><strong>时间：</strong>2026年1月20日至2026年2月20日</li>
+  <li><strong>时间：</strong>2026年2月10日至2026年3月10日</li>
   <li><strong>地点：</strong>各社区服务站点、校内活动中心</li>
   <li><strong>对象：</strong>全体注册志愿者</li>
 </ul>
@@ -202,7 +202,7 @@ const checkCollected = async () => {
       isCollected.value = res.data === true
     }
   } catch (error) {
-    console.error('检查收藏状态失败:', error)
+    console.error('检查收藏状态失败', error)
   }
 }
 
@@ -249,10 +249,10 @@ onMounted(() => {
 }
 
 .notice-card {
-  background: #fff;
+  background: var(--el-bg-color-overlay);
   border-radius: 12px;
   padding: 40px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .notice-header {
@@ -269,7 +269,7 @@ onMounted(() => {
   .notice-title {
     font-size: 28px;
     font-weight: bold;
-    color: #333;
+    color: var(--el-text-color-primary);
     margin: 0 0 20px;
     line-height: 1.4;
   }
@@ -285,7 +285,7 @@ onMounted(() => {
       align-items: center;
       gap: 6px;
       font-size: 14px;
-      color: #999;
+      color: var(--el-text-color-secondary);
     }
   }
 }
@@ -293,14 +293,14 @@ onMounted(() => {
 .notice-content {
   font-size: 16px;
   line-height: 1.8;
-  color: #333;
+  color: var(--el-text-color-primary);
 
   :deep(h3) {
     font-size: 18px;
-    color: #333;
+    color: var(--el-text-color-primary);
     margin: 24px 0 12px;
     padding-left: 12px;
-    border-left: 4px solid #409eff;
+    border-left: 4px solid var(--el-color-primary);
   }
 
   :deep(p) {
@@ -320,9 +320,9 @@ onMounted(() => {
   :deep(blockquote) {
     margin: 20px 0;
     padding: 16px 20px;
-    background: #f9f9f9;
-    border-left: 4px solid #ddd;
-    color: #666;
+    background: var(--el-fill-color-light);
+    border-left: 4px solid var(--el-border-color);
+    color: var(--el-text-color-regular);
 
     p {
       text-indent: 0;
@@ -331,7 +331,8 @@ onMounted(() => {
   }
 
   :deep(strong) {
-    color: #333;
+    color: var(--el-text-color-primary);
+    font-weight: bold;
   }
 }
 
@@ -341,12 +342,12 @@ onMounted(() => {
   align-items: center;
   margin-top: 40px;
   padding-top: 20px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--el-border-color-light);
 
   .footer-left {
     .update-time {
       font-size: 13px;
-      color: #999;
+      color: var(--el-text-color-secondary);
     }
   }
 
@@ -355,4 +356,26 @@ onMounted(() => {
     gap: 12px;
   }
 }
+
+@media (max-width: 768px) {
+  .notice-card {
+    padding: 20px;
+  }
+  
+  .notice-header .notice-title {
+    font-size: 22px;
+  }
+  
+  .notice-footer {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+    
+    .footer-right {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+}
+
 </style>

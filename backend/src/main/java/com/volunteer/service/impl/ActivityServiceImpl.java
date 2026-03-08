@@ -1,6 +1,7 @@
 package com.volunteer.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.dto.ActivityDTO;
 import com.volunteer.dto.ActivityPageQuery;
@@ -9,6 +10,7 @@ import com.volunteer.entity.Activity;
 import com.volunteer.entity.ActivityCategory;
 import com.volunteer.entity.Organizer;
 import com.volunteer.entity.SysUser;
+import com.volunteer.entity.ActivityRegistration;
 import com.volunteer.mapper.ActivityCategoryMapper;
 import com.volunteer.mapper.ActivityMapper;
 import com.volunteer.mapper.OrganizerMapper;
@@ -52,6 +54,7 @@ public class ActivityServiceImpl implements ActivityService {
     // Inject ActivityRegistrationMapper and SysMessageService
     private final com.volunteer.mapper.ActivityRegistrationMapper activityRegistrationMapper;
     private final com.volunteer.service.SysMessageService sysMessageService;
+    private final com.volunteer.mapper.PointsRecordMapper pointsRecordMapper;
 
     private static final Map<Integer, String> STATUS_MAP = new HashMap<>();
     static {
@@ -311,7 +314,15 @@ public class ActivityServiceImpl implements ActivityService {
         LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
 
         if (StringUtils.hasText(query.getTitle())) {
-            queryWrapper.like(Activity::getTitle, query.getTitle());
+            String keyword = query.getTitle().trim().replaceAll("\\s+", "");
+            // Create fuzzy pattern e.g., "AB" -> "A%B" which MyBatis applies as "%A%B%"
+            String fuzzyPattern = String.join("%", keyword.split(""));
+            queryWrapper.and(wrapper -> wrapper
+                    .like(Activity::getTitle, fuzzyPattern)
+                    .or()
+                    .like(Activity::getSummary, fuzzyPattern)
+                    .or()
+                    .like(Activity::getLocation, fuzzyPattern));
         }
         if (query.getCategoryId() != null) {
             queryWrapper.eq(Activity::getCategoryId, query.getCategoryId());
@@ -397,6 +408,30 @@ public class ActivityServiceImpl implements ActivityService {
             log.error("增强活动列表失败", e);
         }
 
+        // 增强逻辑2：计算待审核人数 (Pending Count)
+        if (!dtoList.isEmpty()) {
+            try {
+                List<Long> activityIds = dtoList.stream().map(ActivityDTO::getId).collect(Collectors.toList());
+                QueryWrapper<ActivityRegistration> regWrapper = new QueryWrapper<>();
+                regWrapper.in("activity_id", activityIds)
+                        .eq("status", ActivityRegistration.STATUS_REGISTERED)
+                        .eq("is_deleted", 0)
+                        .select("activity_id", "count(*) as count")
+                        .groupBy("activity_id");
+
+                List<Map<String, Object>> counts = activityRegistrationMapper.selectMaps(regWrapper);
+                Map<Long, Integer> countMap = counts.stream().collect(Collectors.toMap(
+                        m -> ((Number) m.get("activity_id")).longValue(),
+                        m -> ((Number) m.get("count")).intValue()));
+
+                for (ActivityDTO dto : dtoList) {
+                    dto.setPendingCount(countMap.getOrDefault(dto.getId(), 0));
+                }
+            } catch (Exception e) {
+                log.error("计算活动待审核人数失败", e);
+            }
+        }
+
         dtoPage.setRecords(dtoList);
 
         return dtoPage;
@@ -470,6 +505,76 @@ public class ActivityServiceImpl implements ActivityService {
         }
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void checkin(Long activityId, Long userId) {
+        // 1. 获取志愿者信息
+        LambdaQueryWrapper<Volunteer> vQuery = new LambdaQueryWrapper<>();
+        vQuery.eq(Volunteer::getUserId, userId);
+        Volunteer volunteer = volunteerMapper.selectOne(vQuery);
+        if (volunteer == null) {
+            throw new RuntimeException("志愿者信息不存在");
+        }
+
+        // 2. 检查活动状态
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
+            throw new RuntimeException("活动不存在");
+        }
+        if (!Activity.STATUS_ONGOING.equals(activity.getStatus())) {
+            throw new RuntimeException("非签到时间");
+        }
+
+        // 3. 查询报名记录
+        LambdaQueryWrapper<com.volunteer.entity.ActivityRegistration> regQuery = new LambdaQueryWrapper<>();
+        regQuery.eq(com.volunteer.entity.ActivityRegistration::getActivityId, activityId)
+                .eq(com.volunteer.entity.ActivityRegistration::getVolunteerId, volunteer.getId())
+                .eq(com.volunteer.entity.ActivityRegistration::getIsDeleted, 0);
+
+        com.volunteer.entity.ActivityRegistration registration = activityRegistrationMapper.selectOne(regQuery);
+        if (registration == null) {
+            throw new RuntimeException("您未报名该活动");
+        }
+
+        if (com.volunteer.entity.ActivityRegistration.STATUS_SIGNED_IN.equals(registration.getStatus()) ||
+                com.volunteer.entity.ActivityRegistration.STATUS_COMPLETED.equals(registration.getStatus())) {
+            throw new RuntimeException("请勿重复签到");
+        }
+
+        // 4. 更新签到状态
+        registration.setStatus(com.volunteer.entity.ActivityRegistration.STATUS_SIGNED_IN);
+        registration.setSignInTime(LocalDateTime.now());
+        registration.setUpdateTime(LocalDateTime.now());
+        activityRegistrationMapper.updateById(registration);
+
+        // 5. 奖励积分 (+10)
+        int rewardPoints = 10;
+        volunteer.setAvailablePoints(
+                (volunteer.getAvailablePoints() == null ? 0 : volunteer.getAvailablePoints()) + rewardPoints);
+        volunteer.setTotalPoints((volunteer.getTotalPoints() == null ? 0 : volunteer.getTotalPoints()) + rewardPoints);
+        volunteer.setUpdateTime(LocalDateTime.now());
+        volunteerMapper.updateById(volunteer);
+
+        // 6. 记录积分流水
+        com.volunteer.entity.PointsRecord record = new com.volunteer.entity.PointsRecord();
+        record.setVolunteerId(volunteer.getId());
+        record.setPoints(rewardPoints);
+        record.setBalance(volunteer.getAvailablePoints());
+        record.setType("ACTIVITY_CHECKIN");
+        record.setBizId(activityId);
+        record.setDescription("活动签到奖励: " + activity.getTitle());
+        record.setCreateTime(LocalDateTime.now());
+        record.setUpdateTime(LocalDateTime.now());
+        record.setIsDeleted(0);
+        pointsRecordMapper.insert(record);
+
+        // 7. 发送通知
+        sysMessageService.sendMessage(userId, null, "签到成功",
+                String.format("您已成功签到活动【%s】，获得 %d 积分。", activity.getTitle(), rewardPoints), "SYSTEM");
+
+        log.info("志愿者 {} 签到活动 {} 成功", volunteer.getId(), activityId);
+    }
+
     @SuppressWarnings("null")
     private ActivityDTO convertToDTO(Activity activity) {
         ActivityDTO dto = new ActivityDTO();
@@ -492,5 +597,26 @@ public class ActivityServiceImpl implements ActivityService {
         }
 
         return dto;
+    }
+
+    @Override
+    public java.util.List<ActivityDTO> getSearchSuggestions(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return java.util.Collections.emptyList();
+        }
+
+        String cleanKeyword = keyword.trim().replaceAll("\\s+", "");
+        String fuzzyPattern = String.join("%", cleanKeyword.split(""));
+
+        LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.and(w -> w.like(Activity::getTitle, fuzzyPattern)
+                .or().like(Activity::getSummary, fuzzyPattern)
+                .or().like(Activity::getLocation, fuzzyPattern))
+                .eq(Activity::getIsDeleted, 0)
+                .eq(Activity::getStatus, Activity.STATUS_PUBLISHED)
+                .last("LIMIT 10");
+        return activityMapper.selectList(queryWrapper).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 }

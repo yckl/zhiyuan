@@ -44,6 +44,9 @@ public class Comment implements Serializable {
     /** 评论内容 */
     private String content;
 
+    /** 评分(1-5星) */
+    private Integer rating;
+
     /** 点赞数 */
     private Integer likeCount;
 

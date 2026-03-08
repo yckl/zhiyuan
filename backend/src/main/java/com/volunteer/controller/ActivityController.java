@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.common.Result;
 import com.volunteer.dto.ActivityDTO;
 import com.volunteer.dto.ActivityPageQuery;
+import com.volunteer.dto.CheckinRequest;
 import com.volunteer.dto.ActivityRequest;
 import com.volunteer.entity.Activity;
 import com.volunteer.entity.Organizer;
@@ -122,6 +123,20 @@ public class ActivityController {
     }
 
     /**
+     * 获取搜索建议
+     */
+    @GetMapping("/suggestions")
+    @Operation(summary = "获取搜索建议", description = "根据关键词获取活动建议")
+    public Result<java.util.List<com.volunteer.dto.ActivityDTO>> getSuggestions(@RequestParam String keyword) {
+        try {
+            return Result.success(activityService.getSearchSuggestions(keyword));
+        } catch (Exception e) {
+            log.error("获取搜索建议失败: {}", e.getMessage());
+            return Result.success(java.util.Collections.emptyList());
+        }
+    }
+
+    /**
      * 删除活动
      */
     @DeleteMapping("/{id}")
@@ -184,6 +199,31 @@ public class ActivityController {
             return Result.success(page);
         } catch (Exception e) {
             log.error("查询我的活动失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 扫码签到
+     */
+    @PostMapping("/checkin")
+    @Operation(summary = "扫码签到", description = "志愿者通过扫描活动二维码进行签到")
+    public Result<String> checkin(@RequestBody CheckinRequest request) {
+        Long activityId = request.getActivityId();
+        if (activityId == null) {
+            return Result.error("活动ID不能为空");
+        }
+
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
+
+        try {
+            activityService.checkin(activityId, userId);
+            return Result.success("签到成功，积分+10", null);
+        } catch (Exception e) {
+            log.error("签到失败: {}", e.getMessage());
             return Result.error(e.getMessage());
         }
     }

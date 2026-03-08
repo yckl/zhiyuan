@@ -1,98 +1,116 @@
 <template>
-  <div class="course-list-page">
-    <div class="page-header">
-      <div class="header-row">
+  <div class="course-discover" :class="{ 'is-mobile': isMobile }">
+
+    <!-- ==================== 头部 ==================== -->
+    <div class="discover-header">
+      <div class="header-top">
         <div>
-          <h2>📚 培训学院</h2>
-          <p class="subtitle">提升技能，获取积分奖励</p>
+          <h1 class="header-title">📚 培训学院</h1>
+          <p class="header-sub">提升技能，获取积分奖励</p>
         </div>
-        <router-link to="/training/my" class="exam-link">
+        <router-link to="/training/my" class="exam-entry">
           <el-icon><Document /></el-icon>
-          查看我的考试记录
+          <span>考试记录</span>
         </router-link>
       </div>
-    </div>
 
-    <!-- 搜索和筛选 -->
-    <div class="filter-bar">
+      <!-- 搜索栏 -->
       <el-input
         v-model="searchKeyword"
-        placeholder="搜索课程名称..."
-        prefix-icon="Search"
+        placeholder="搜索课程"
         clearable
-        style="width: 300px"
+        :prefix-icon="Search"
+        class="search-bar"
         @input="handleSearch"
+        @clear="handleSearch"
       />
-      <el-radio-group v-model="activeCategory" @change="fetchCourses" class="category-filters">
-        <el-radio-button value="">全部</el-radio-button>
-        <el-radio-button value="志愿服务基础">志愿服务基础</el-radio-button>
-        <el-radio-button value="急救技能">急救技能</el-radio-button>
-        <el-radio-button value="助老服务">助老服务</el-radio-button>
-        <el-radio-button value="支教培训">支教培训</el-radio-button>
-        <el-radio-button value="心理辅导">心理辅导</el-radio-button>
-        <el-radio-button value="法律知识">法律知识</el-radio-button>
-        <el-radio-button value="安全培训">安全培训</el-radio-button>
-        <el-radio-button value="团队管理">团队管理</el-radio-button>
-      </el-radio-group>
-    </div>
 
-    <!-- 课程统计 -->
-    <div class="stats-bar">
-      <span class="count">共 {{ filteredCourses.length }} 门课程</span>
-    </div>
-
-    <!-- 课程列表 -->
-    <div class="course-grid" v-loading="loading">
-      <div
-        v-for="course in filteredCourses"
-        :key="course.id"
-        class="course-card"
-        @click="goToDetail(course.id)"
-      >
-        <div class="course-cover">
-          <el-image :src="course.coverImage || getPlaceholder(course.id)" :alt="course.title" fit="cover" lazy>
-            <template #error>
-              <div class="cover-placeholder">
-                <el-icon :size="40"><VideoCamera /></el-icon>
-              </div>
-            </template>
-          </el-image>
-          <div class="duration-badge">
-            <el-icon><VideoCamera /></el-icon>
-            {{ course.duration || 30 }}分钟
-          </div>
-          <el-tag
-            :type="getCategoryType(course.category)"
-            class="category-tag"
-            size="small"
-            effect="dark"
-          >
-            {{ course.category || '通识' }}
-          </el-tag>
-          <div v-if="course.passed" class="passed-badge">
-            <el-icon><CircleCheck /></el-icon>
-            已通过
-          </div>
-        </div>
-        <div class="course-info">
-          <h3 class="course-title">{{ course.title }}</h3>
-          <p class="course-instructor">
-            <el-icon><User /></el-icon>
-            {{ course.instructor || '志愿者培训中心' }}
-          </p>
-          <div class="course-meta">
-            <span class="difficulty">
-              <span v-for="i in 3" :key="i" :class="{ active: i <= (course.difficulty || 1) }">★</span>
-            </span>
-            <span class="reward">
-              <el-icon><Trophy /></el-icon>
-              通过奖励 {{ course.creditHours || course.points || 20 }} 积分
-            </span>
-          </div>
+      <!-- 分类 Tab -->
+      <div class="filter-tabs">
+        <div
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="filter-tab"
+          :class="{ active: activeTab === tab.value }"
+          @click="activeTab = tab.value"
+        >
+          <el-icon v-if="tab.icon" class="tab-icon"><component :is="tab.icon" /></el-icon>
+          <span class="tab-label">{{ tab.label }}</span>
         </div>
       </div>
+    </div>
 
-      <el-empty v-if="!loading && filteredCourses.length === 0" description="暂无课程" />
+    <!-- ==================== 骨架屏 ==================== -->
+    <div v-if="loading && courseList.length === 0" class="skeleton-section">
+      <div class="course-grid">
+        <div v-for="i in (isMobile ? 3 : 6)" :key="i" class="skeleton-card">
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item variant="image" style="height: 180px" />
+              <div style="padding: 14px">
+                <el-skeleton-item variant="h3" style="width: 80%" />
+                <el-skeleton-item variant="text" style="width: 60%; margin-top: 10px" />
+                <el-skeleton-item variant="text" style="width: 40%; margin-top: 8px" />
+              </div>
+            </template>
+          </el-skeleton>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 课程网格 ==================== -->
+    <div v-else class="course-section">
+      <div class="section-head" v-if="searchKeyword">
+        <span class="section-title">🔍 搜索结果</span>
+        <span class="section-count">{{ displayCourses.length }} 门课程</span>
+      </div>
+
+      <TransitionGroup name="card-fade" tag="div" class="course-grid">
+        <div
+          v-for="(course, idx) in displayCourses"
+          :key="course.id"
+          class="course-card"
+          :style="{ animationDelay: `${idx * 0.04}s` }"
+          @click="goToDetail(course.id)"
+        >
+          <!-- 封面 -->
+          <div class="card-cover">
+            <el-image :src="course.coverImage || getPlaceholder(course.id)" fit="cover" lazy>
+  <template #error>
+    <img :src="'/default-cover.jpg'" style="width:100%;height:100%;object-fit:cover"/>
+  </template>
+</el-image>
+            <div class="cover-gradient"></div>
+            <div class="duration-chip">
+              <el-icon><VideoCamera /></el-icon> {{ course.duration || 30 }}min
+            </div>
+            <div v-if="course.passed" class="passed-badge">✅ 已通过</div>
+          </div>
+
+          <!-- 信息 -->
+          <div class="card-body">
+            <h4 class="card-title">{{ course.title }}</h4>
+            <div class="card-tags">
+              <el-tag size="small" type="info" effect="plain">{{ course.category || '通识' }}</el-tag>
+              <span class="card-reward">🏆 {{ course.creditHours || course.points || 20 }}</span>
+            </div>
+            <el-progress
+              :percentage="course.passed ? 100 : Math.floor(Math.random() * 50)"
+              :stroke-width="5" :show-text="false"
+              :color="course.passed ? '#67C23A' : '#00BFA6'"
+              style="margin: 8px 0"
+            />
+            <div class="card-footer">
+              <span class="card-instructor">{{ course.instructor || '培训中心' }}</span>
+              <button class="learn-btn" @click.stop="goToDetail(course.id)">
+                {{ course.passed ? '再次学习' : '开始学习' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </TransitionGroup>
+
+      <el-empty v-if="!loading && displayCourses.length === 0" description="暂无课程" :image-size="100" />
     </div>
   </div>
 </template>
@@ -100,313 +118,434 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { VideoCamera, User, Trophy, Document, CircleCheck } from '@element-plus/icons-vue'
+import { Search, VideoCamera, Document, Menu, Flag, Notebook, CircleCheck } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
 
 interface Course {
-  id: number
-  title: string
-  coverImage?: string
-  category?: string
-  instructor?: string
-  duration?: number
-  difficulty?: number
-  creditHours?: number
-  points?: number
-  passed?: boolean
+  id: number; title: string; coverImage?: string; category?: string
+  instructor?: string; duration?: number; difficulty?: number
+  creditHours?: number; points?: number; passed?: boolean
+  courseType?: string // 'required' | 'elective'
 }
 
 const router = useRouter()
+
+// ================== 响应式 ==================
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 768)
+onMounted(() => window.addEventListener('resize', () => { windowWidth.value = window.innerWidth }))
+
+// ================== 状态 ==================
 const loading = ref(false)
-const activeCategory = ref('')
 const searchKeyword = ref('')
 const courseList = ref<Course[]>([])
+const activeTab = ref('all')
 
-const placeholderImages = [
-  'https://picsum.photos/seed/course1/400/225',
-  'https://picsum.photos/seed/course2/400/225',
-  'https://picsum.photos/seed/course3/400/225',
-  'https://picsum.photos/seed/course4/400/225',
-  'https://picsum.photos/seed/course5/400/225',
+const tabs = [
+  { label: '全部', value: 'all', icon: Menu },
+  { label: '必修', value: 'required', icon: Flag },
+  { label: '选修', value: 'elective', icon: Notebook },
+  { label: '已完成', value: 'passed', icon: CircleCheck }
 ]
 
-const getPlaceholder = (id: number) => {
-  return placeholderImages[id % placeholderImages.length]
-}
+// ================== 分区 ==================
+const requiredCategories = ['志愿服务基础', '安全培训', '法律知识']
+const electiveCategories = ['助老服务', '支教培训', '心理辅导', '团队管理']
 
-const getCategoryType = (category?: string) => {
-  const map: Record<string, string> = {
-    '志愿服务基础': 'primary',
-    '急救技能': 'danger',
-    '助老服务': 'success',
-    '支教培训': 'warning',
-    '心理辅导': 'primary',
-    '法律知识': 'info',
-    '安全培训': 'danger',
-    '团队管理': 'warning'
+const displayCourses = computed(() => {
+  let list = courseList.value
+
+  // 搜索过滤
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase()
+    list = list.filter(c => c.title.toLowerCase().includes(kw))
   }
-  return map[category || ''] || 'info'
-}
 
-const filteredCourses = computed(() => {
-  if (!searchKeyword.value) return courseList.value
-  const keyword = searchKeyword.value.toLowerCase()
-  return courseList.value.filter(course =>
-    course.title.toLowerCase().includes(keyword)
-  )
+  // Tab 过滤
+  switch (activeTab.value) {
+    case 'required':
+      return list.filter(c => c.courseType === 'required' || requiredCategories.includes(c.category || ''))
+    case 'elective':
+      return list.filter(c => c.courseType === 'elective' || electiveCategories.includes(c.category || ''))
+    case 'passed':
+      return list.filter(c => c.passed)
+    default:
+      return list
+  }
 })
 
-const handleSearch = () => {
-  // 搜索通过 computed 自动过滤
+// ================== 占位图 ==================
+const getPlaceholder = (id: number) => {
+  const colors = ['667eea', 'f093fb', '4facfe', '43e97b', 'fa709a', '00BFA6', 'FF6B6B', 'FFA502']
+  return `https://via.placeholder.com/400x240/${colors[id % colors.length]}/fff?text=${encodeURIComponent('课程')}`
 }
 
+// ================== API ==================
 const fetchCourses = async () => {
   loading.value = true
   try {
-    const params: any = {}
-    if (activeCategory.value) {
-      params.category = activeCategory.value
-    }
-    const res = await request.get('/course/list', params)
-    if (res.code === 200) {
-      courseList.value = res.data || []
-    }
-  } catch (error) {
-    console.error('获取课程列表失败:', error)
-    // 使用模拟数据
+    const res = await request.get('/course/list')
+    if (res.code === 200) courseList.value = res.data || []
+  } catch (e) {
+    console.error('获取课程列表失败:', e)
     courseList.value = generateMockCourses()
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 
 const generateMockCourses = (): Course[] => {
-  const categories = ['通识', '技能', '安全']
   const titles = [
     '志愿服务入门培训', '急救知识培训', '沟通技巧提升',
-    '团队协作训练', '公共场所安全', '服务礼仪规范',
-    '心理援助基础', '环保知识普及', '社区服务技巧'
+    '团队协作训练', '公共场所安全', '服务礼仪规范'
   ]
-  return titles.map((title, index) => ({
-    id: index + 1,
-    title,
-    category: categories[index % 3],
-    instructor: '培训讲师',
-    duration: 20 + index * 5,
-    difficulty: (index % 3) + 1,
-    creditHours: 20 + index * 5,
-    passed: index < 3
+  const cats = ['志愿服务基础', '急救技能', '助老服务', '支教培训', '安全培训', '法律知识']
+  return titles.map((title, i) => ({
+    id: i + 1, title, category: cats[i], instructor: '培训讲师',
+    duration: 20 + i * 5, difficulty: (i % 3) + 1,
+    creditHours: 20 + i * 5, passed: i < 3
   }))
 }
 
-const goToDetail = (id: number) => {
-  router.push(`/training/detail/${id}`)
-}
+const handleSearch = () => { /* computed handles it */ }
+
+const goToDetail = (id: number) => { router.push(`/training/detail/${id}`) }
 
 onMounted(fetchCourses)
 </script>
 
 <style lang="scss" scoped>
-.course-list-page {
-  padding: 20px;
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.page-header {
-  margin-bottom: 24px;
-
-  .header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-
-  h2 {
-    margin: 0 0 8px;
-    font-size: 24px;
-  }
-
-  .subtitle {
-    margin: 0;
-    color: var(--el-text-color-secondary);
-  }
-
-  .exam-link {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--el-color-primary);
-    font-size: 14px;
-    text-decoration: none;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
+.course-discover {
+  min-height: 100vh;
+  background: var(--app-bg);
+  padding-bottom: 40px;
 }
 
-.filter-bar {
+// ================================================================
+// 头部
+// ================================================================
+.discover-header {
+  background: #fff;
+  padding: 16px;
+  padding-bottom: 0;
+}
+
+.header-top {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 16px 20px;
-  background: var(--el-bg-color-overlay);
-  border-radius: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
 
-  .category-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+  .header-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #333;
+    margin: 0 0 2px;
+  }
 
-    :deep(.el-radio-button__inner) {
-      border-radius: 20px !important;
-      border: 1px solid var(--el-border-color) !important;
-      margin-right: 8px;
-      margin-bottom: 8px;
-      background: var(--el-fill-color-blank) !important;
-    }
-
-    :deep(.el-radio-button:first-child .el-radio-button__inner) {
-      border-radius: 20px !important;
-    }
-
-    :deep(.el-radio-button:last-child .el-radio-button__inner) {
-      border-radius: 20px !important;
-    }
+  .header-sub {
+    font-size: 13px;
+    color: #999;
+    margin: 0;
   }
 }
 
-.stats-bar {
-  margin-bottom: 16px;
+.exam-entry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary-color);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 6px 12px;
+  background: rgba(0, 191, 166, 0.08);
+  border-radius: 16px;
+  font-weight: 500;
+}
 
-  .count {
-    color: var(--el-text-color-secondary);
-    font-size: 14px;
+.search-bar {
+  margin-bottom: 12px;
+  :deep(.el-input__wrapper) {
+    border-radius: 10px;
+    background: #F5F5F5;
+    box-shadow: none !important;
+  }
+}
+
+// ================================================================
+// 分类 Tab
+// ================================================================
+.filter-tabs {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0 12px;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.filter-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+
+  .tab-icon {
+    font-size: 16px;
+  }
+
+  &.active {
+    color: var(--primary-color);
+    background: rgba(0, 191, 166, 0.1);
+    border-color: rgba(0, 191, 166, 0.2);
+    font-weight: 700;
+  }
+}
+
+// ================================================================
+// 骨架屏
+// ================================================================
+.skeleton-section {
+  padding: 16px;
+}
+
+.skeleton-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+// ================================================================
+// 课程网格
+// ================================================================
+.course-section {
+  padding: 16px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+
+  .section-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #333;
+  }
+
+  .section-count {
+    font-size: 13px;
+    color: #999;
   }
 }
 
 .course-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .course-card {
-  background: var(--el-bg-color-overlay);
+  background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   transition: all 0.3s;
+  animation: cardFadeIn 0.4s ease-out both;
+
+  &:active { transform: scale(0.97); }
+}
+
+// ================================================================
+// 卡片封面
+// ================================================================
+.card-cover {
+  position: relative;
+  height: 140px;
+  overflow: hidden;
+
+  :deep(.el-image) { width: 100%; height: 100%; }
+
+  .cover-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 40%, rgba(0, 0, 0, 0.3) 100%);
+    pointer-events: none;
+  }
+
+  .duration-chip {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    backdrop-filter: blur(4px);
+  }
+
+  .passed-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #67C23A;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}
+
+// ================================================================
+// 卡片主体
+// ================================================================
+.card-body {
+  padding: 12px;
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+    min-height: 39px;
+  }
+
+  .card-tags {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+
+    .card-reward {
+      font-size: 11px;
+      color: #F7971E;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+  }
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .card-instructor {
+    font-size: 11px;
+    color: #999;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60px;
+  }
+}
+
+.learn-btn {
+  border: none;
+  background: linear-gradient(135deg, var(--primary-color), #43e97b);
+  color: #fff;
+  padding: 5px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
 
   &:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(0, 191, 166, 0.3);
   }
 
-  .course-cover {
-    position: relative;
-    height: 180px;
-    overflow: hidden;
+  &:active { transform: scale(0.97); }
+}
 
-    :deep(.el-image) {
-      width: 100%;
-      height: 100%;
-    }
+// ================================================================
+// TransitionGroup 动画
+// ================================================================
+.card-fade-enter-active { transition: all 0.35s ease-out; }
+.card-fade-leave-active { transition: all 0.2s ease-in; }
+.card-fade-enter-from { opacity: 0; transform: translateY(16px); }
+.card-fade-leave-to { opacity: 0; transform: scale(0.96); }
+.card-fade-move { transition: transform 0.3s ease; }
 
-    .cover-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: rgba(255,255,255,0.5);
-    }
+// ================================================================
+// PC 适配
+// ================================================================
+@media (min-width: 769px) {
+  .course-discover {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 20px;
+    background: transparent;
 
-    &:hover :deep(.el-image) img {
-      transform: scale(1.05);
-    }
-
-    .duration-badge {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .category-tag {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-    }
-
-    .passed-badge {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: #67c23a;
-      color: #fff;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
+    @media (min-width: 1200px) and (max-width: 1600px) { max-width: 90%; }
+    @media (min-width: 1601px) { max-width: 1600px; }
   }
 
-  .course-info {
-    padding: 16px;
+  .discover-header {
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
 
-    .course-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin: 0 0 8px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--el-text-color-primary);
+  .course-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .course-card {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    &:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
     }
 
-    .course-instructor {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 13px;
-      color: var(--el-text-color-secondary);
-      margin: 0 0 12px;
-    }
+    .card-cover { height: 180px; }
+  }
+}
 
-    .course-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+// ================================================================
+// 移动端微调
+// ================================================================
+.is-mobile {
+  .course-grid { grid-template-columns: 1fr; }
+  .card-cover { height: 160px; }
 
-      .difficulty {
-        color: var(--el-text-color-placeholder);
-        
-        .active {
-          color: var(--el-color-warning);
-        }
-      }
+  .card-footer {
+    .card-instructor { max-width: 120px; }
+  }
 
-      .reward {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 13px;
-        color: var(--el-color-warning);
-        font-weight: 500;
-      }
-    }
+  .learn-btn {
+    padding: 6px 18px;
+    font-size: 13px;
   }
 }
 </style>

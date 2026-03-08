@@ -1,6 +1,10 @@
 <template>
   <div class="notice-list-page">
     <div class="page-header">
+      <div class="back-link" @click="router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        <span>返回</span>
+      </div>
       <h2>📢 通知公告</h2>
       <p class="subtitle">查看最新的系统公告和通知</p>
     </div>
@@ -45,12 +49,15 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination-wrapper" v-if="total > pageSize">
+    <div class="pagination-wrapper" v-if="total > 0">
       <el-pagination
         v-model:current-page="currentPage"
         :page-size="pageSize"
         :total="total"
-        layout="prev, pager, next"
+        :layout="isMobile ? 'prev, pager, next' : 'total, prev, pager, next'"
+        :pager-count="isMobile ? 5 : 7"
+        :small="isMobile"
+        background
         @current-change="fetchNotices"
       />
     </div>
@@ -58,10 +65,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { OfficeBuilding, ArrowRight } from '@element-plus/icons-vue'
+import { OfficeBuilding, ArrowRight, ArrowLeft } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
+
+const windowWidth = ref(window.innerWidth)
+const isMobile = ref(window.innerWidth < 768)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+  isMobile.value = windowWidth.value < 768
+}
 
 interface Notice {
   id: number
@@ -111,7 +126,7 @@ const getTypeText = (type?: string) => {
   return map[type || ''] || '通知'
 }
 
-// 去除HTML标签并截取摘要
+// 去除HTML标签并截取摘?
 const stripHtml = (html: string, maxLength: number = 100) => {
   if (!html) return ''
   const tmp = document.createElement('DIV')
@@ -158,7 +173,7 @@ const generateMockData = (): Notice[] => {
     {
       id: 1,
       title: '关于2026年寒假志愿服务活动报名的通知',
-      summary: '各位志愿者同学：为丰富同学们的寒假生活，培养社会责任感，现开放2026年寒假志愿服务活动报名...',
+      summary: '各位志愿者同学：为丰富同学们的寒假生活，培养社会责任感，现开展2026年寒假志愿服务活动报名...',
       type: 'ACTIVITY',
       department: '校团委志愿者工作部',
       isTop: true,
@@ -207,7 +222,14 @@ const goToDetail = (id: number) => {
   router.push(`/notice/detail/${id}`)
 }
 
-onMounted(fetchNotices)
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+  fetchNotices()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -219,6 +241,21 @@ onMounted(fetchNotices)
 
 .page-header {
   margin-bottom: 32px;
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--el-text-color-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 12px;
+    transition: color 0.2s;
+
+    &:hover {
+      color: var(--el-color-primary);
+    }
+  }
 
   h2 {
     margin: 0 0 8px;
@@ -238,14 +275,14 @@ onMounted(fetchNotices)
   padding: 32px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
-
 .notice-card {
-  background: var(--el-fill-color-light);
+  background: var(--bg-card);
   border-radius: 8px;
   padding: 20px;
   cursor: pointer;
   transition: all 0.3s;
   border-left: 4px solid transparent;
+  border: 1px solid var(--border-color);
 
   &:hover {
     background: var(--el-fill-color);

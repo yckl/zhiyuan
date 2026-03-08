@@ -27,9 +27,11 @@ com\volunteer\mapper\ExperienceMapper.class
 com\volunteer\service\VolunteerService.class
 com\volunteer\controller\ExperienceController.class
 com\volunteer\controller\PointsMallController.class
+com\volunteer\vo\RegistrationStatsVO.class
 com\volunteer\entity\Volunteer.class
 com\volunteer\service\impl\PointsMallServiceImpl.class
 com\volunteer\service\AuthService.class
+com\volunteer\aspect\SensitiveCheckAspect.class
 com\volunteer\entity\UserProps$PropType.class
 com\volunteer\mapper\ActivityReviewMapper.class
 com\volunteer\mapper\SysConfigMapper.class
@@ -49,12 +51,17 @@ com\volunteer\entity\SysConfig.class
 com\volunteer\mapper\ActivityMapper.class
 com\volunteer\controller\SettlementController.class
 com\volunteer\controller\VolunteerController.class
+com\volunteer\controller\RecommendationController.class
 com\volunteer\dto\ExperienceDTO.class
 com\volunteer\service\impl\NoticeServiceImpl.class
+com\volunteer\entity\CourseViewLog.class
+com\volunteer\util\SensitiveWordFilter.class
 com\volunteer\entity\UserProps$Status.class
+com\volunteer\service\impl\CourseRecommendationServiceImpl.class
 com\volunteer\entity\SysMessage.class
 com\volunteer\security\LoginUser.class
 com\volunteer\vo\admin\OrganizerInfoVO.class
+com\volunteer\vo\RegistrationStatsVO$RegistrationStatsVOBuilder.class
 com\volunteer\config\RedisConfig.class
 com\volunteer\service\CheckinLotteryService.class
 com\volunteer\vo\VolunteerStatsVO.class
@@ -88,6 +95,7 @@ com\volunteer\controller\OrgStatisticsController.class
 com\volunteer\entity\Banner.class
 com\volunteer\dto\LoginResponse.class
 com\volunteer\controller\AdminExperienceController.class
+com\volunteer\dto\CheckinRequest.class
 com\volunteer\entity\CourseExamRecord.class
 com\volunteer\controller\AuthController.class
 com\volunteer\dto\CommentDTO.class
@@ -109,13 +117,14 @@ com\volunteer\controller\OrganizerCheckinController.class
 com\volunteer\entity\Organizer.class
 com\volunteer\entity\LotteryRecord.class
 com\volunteer\mapper\ActivityRegistrationMapper.class
-AdminSystemController.class
 com\volunteer\entity\PointsRecord$Type.class
 com\volunteer\dto\StatisticsVO.class
 com\volunteer\service\ExperienceService.class
 com\volunteer\controller\StatisticsController.class
+com\volunteer\controller\AdminSystemController.class
 com\volunteer\security\UserDetailsServiceImpl.class
 com\volunteer\entity\SysUser.class
+com\volunteer\exception\SensitiveWordException.class
 com\volunteer\mapper\LotteryPrizeMapper.class
 com\volunteer\vo\admin\AdminStatsVO.class
 com\volunteer\dto\ActivityDTO.class
@@ -134,6 +143,7 @@ com\volunteer\mapper\CommentMapper.class
 com\volunteer\dto\VolunteerDTO.class
 com\volunteer\vo\ExamPaperVO.class
 com\volunteer\vo\ExamSubmitDTO$AnswerItem.class
+com\volunteer\mapper\CourseViewLogMapper.class
 com\volunteer\vo\NotificationHistoryVO.class
 com\volunteer\service\impl\StatisticsServiceImpl.class
 com\volunteer\mapper\PointsRecordMapper.class
@@ -144,6 +154,7 @@ com\volunteer\entity\Comment.class
 com\volunteer\mapper\OperationLogMapper.class
 com\volunteer\entity\CourseQuestion.class
 com\volunteer\mapper\ActivityViewLogMapper.class
+com\volunteer\common\annotation\CheckSensitive.class
 com\volunteer\service\ReviewService.class
 com\volunteer\controller\OrganizerController.class
 com\volunteer\service\NoticeService.class
@@ -155,11 +166,13 @@ com\volunteer\controller\AdminNoticeController.class
 com\volunteer\exception\GlobalExceptionHandler.class
 com\volunteer\service\PointsMallService.class
 com\volunteer\controller\CollectionController.class
+com\volunteer\service\RecommendationService.class
 com\volunteer\mapper\OrganizerMapper.class
 com\volunteer\controller\FileController.class
 com\volunteer\entity\Experience.class
 com\volunteer\controller\VolunteerReviewController.class
 com\volunteer\vo\ExamPaperVO$QuestionVO.class
+com\volunteer\dto\RecommendationDTO.class
 com\volunteer\service\impl\CommentServiceImpl.class
 com\volunteer\controller\AdminOrganizerController.class
 com\volunteer\mapper\UserLikeMapper.class
@@ -173,6 +186,7 @@ com\volunteer\dto\UserPageQuery.class
 com\volunteer\entity\Course.class
 com\volunteer\mapper\ActivityFavoriteMapper.class
 com\volunteer\mapper\MallGoodsMapper.class
+com\volunteer\service\impl\RecommendationServiceImpl.class
 com\volunteer\dto\RegistrationDTO.class
 com\volunteer\entity\UserProps$Source.class
 com\volunteer\entity\UserProps.class
@@ -204,4 +218,5 @@ com\volunteer\vo\SigninResultVO.class
 com\volunteer\controller\AdminDashboardController.class
 com\volunteer\dto\VolunteerRegisterRequest.class
 com\volunteer\vo\BuyResultVO.class
+com\volunteer\service\CourseRecommendationService.class
 com\volunteer\config\SecurityConfig.class

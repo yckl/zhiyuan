@@ -68,8 +68,8 @@ public class CourseExamRecord implements Serializable {
     @TableLogic
     private Integer isDeleted;
 
-    /** 及格分数线 */
-    public static final int PASS_SCORE = 60;
+    /** 及格分数线（3题×10分=30，需全部答对） */
+    public static final int PASS_SCORE = 30;
 
     /** 通过奖励积分 */
     public static final int PASS_REWARD_POINTS = 20;

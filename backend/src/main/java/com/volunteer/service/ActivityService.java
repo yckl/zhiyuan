@@ -50,4 +50,14 @@ public interface ActivityService {
      * 记录浏览足迹
      */
     void recordView(Long userId, Long activityId);
+
+    /**
+     * 扫码签到
+     */
+    void checkin(Long activityId, Long userId);
+
+    /**
+     * 获取搜索建议
+     */
+    java.util.List<ActivityDTO> getSearchSuggestions(String keyword);
 }

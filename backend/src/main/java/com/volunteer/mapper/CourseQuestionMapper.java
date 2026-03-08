@@ -29,4 +29,10 @@ public interface CourseQuestionMapper extends BaseMapper<CourseQuestion> {
      */
     @Select("SELECT COUNT(*) FROM course_question WHERE course_id = #{courseId} AND status = 1 AND is_deleted = 0")
     int countByCourse(@Param("courseId") Long courseId);
+
+    /**
+     * 获取全局共享题目（course_id=0），按 sort_order 排序
+     */
+    @Select("SELECT * FROM course_question WHERE course_id = 0 AND status = 1 AND is_deleted = 0 ORDER BY sort_order ASC")
+    List<CourseQuestion> getSharedQuestions();
 }

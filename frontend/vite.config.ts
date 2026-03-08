@@ -4,6 +4,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+    base: './', // [重要] 适配 HBuilderX/Cordova 等打包环境，使用相对路径
     plugins: [
         vue({
             template: {

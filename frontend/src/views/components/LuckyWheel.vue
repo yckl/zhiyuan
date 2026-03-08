@@ -14,7 +14,7 @@
           :style="getSegmentStyle(index)"
         >
           <div class="segment-content">
-            <img v-if="prize.image" :src="prize.image" :alt="prize.name" class="prize-image" />
+            <img v-if="prize.image" :src="prize.image" :alt="prize.name" class="prize-image" @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')" />
             <span class="prize-name">{{ prize.name }}</span>
           </div>
         </div>
@@ -29,35 +29,35 @@
       </div>
     </div>
 
-    <!-- 积分和抽奖按钮 -->
+    <!-- 积分和抽奖按?-->
     <div class="wheel-info">
       <div class="points-display">
         <span class="label">当前积分:</span>
         <span class="value">{{ availablePoints }}</span>
       </div>
-      <div class="cost-info">消耗 {{ costPoints }} 积分/次</div>
+      <div class="cost-info">消?{{ costPoints }} 积分/</div>
     </div>
 
     <!-- 中奖结果弹窗 -->
     <el-dialog
       v-model="showResult"
-      :title="lastResult?.won ? '🎉 恭喜中奖！' : '😢 再接再厉'"
+      :title="lastResult?.won ? '🎉 恭喜中奖? : '😢 再接再厉'"
       width="320px"
       center
     >
       <div class="result-content">
         <template v-if="lastResult?.won">
-          <img v-if="lastResult.prize?.image" :src="lastResult.prize.image" class="result-image" />
+          <img v-if="lastResult.prize?.image" :src="lastResult.prize.image" class="result-image" @error="(e) => ((e.target as HTMLImageElement).style.display = 'none')" />
           <p class="result-name">{{ lastResult.prizeName }}</p>
           <p class="result-tip">奖励已自动发放到您的账户</p>
         </template>
         <template v-else>
-          <p class="result-tip">很遗憾，本次未中奖</p>
-          <p class="result-tip">再试一次吧！</p>
+          <p class="result-tip">很遗憾，本次未中</p>
+          <p class="result-tip">再试一次吧</p>
         </template>
       </div>
       <template #footer>
-        <el-button type="primary" @click="showResult = false">知道了</el-button>
+        <el-button type="primary" @click="showResult = false">知道</el-button>
       </template>
     </el-dialog>
   </div>
@@ -162,13 +162,13 @@ const handleSpin = async () => {
       let targetIndex = res.data.won ? res.data.prizeIndex : Math.floor(Math.random() * prizeCount)
       
       // 旋转到目标位置：多转几圈 + 目标角度
-      const extraRotations = 5 // 多转5圈
+      const extraRotations = 5 // 多转5?
       const targetAngle = 360 - (targetIndex * segmentAngle) - segmentAngle / 2
       const finalRotation = rotation.value + extraRotations * 360 + targetAngle + (360 - (rotation.value % 360))
 
       rotation.value = finalRotation
 
-      // 等待动画完成后显示结果
+      // 等待动画完成后显示结?
       setTimeout(() => {
         spinning.value = false
         showResult.value = true

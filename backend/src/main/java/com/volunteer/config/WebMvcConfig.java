@@ -19,20 +19,24 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Value("${file.upload-dir:uploads}")
     private String uploadDir;
 
+    @NonNull
     private final MaintenanceInterceptor maintenanceInterceptor;
 
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
-        // 将 /files/** 映射到本地 uploads 目录
+        // 将 /files/** 映射到本地 uploads 目录 (使用绝对路径以提高可靠性)
+        String absolutePath = new java.io.File(uploadDir).getAbsolutePath();
+        if (!absolutePath.endsWith("/") && !absolutePath.endsWith("\\")) {
+            absolutePath += java.io.File.separator;
+        }
         registry.addResourceHandler("/files/**")
-                .addResourceLocations("file:" + uploadDir + "/");
+                .addResourceLocations("file:" + absolutePath);
     }
 
     @Override
     public void addCorsMappings(@NonNull org.springframework.web.servlet.config.annotation.CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOriginPatterns("*", "http://localhost:*", "http://127.0.0.1:*", "http://192.168.*.*:*",
-                        "http://10.*.*.*:*")
+                .allowedOriginPatterns("*") // 允许所有来源
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)

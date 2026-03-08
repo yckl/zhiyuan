@@ -15,7 +15,7 @@ public interface PointsMallService {
     /**
      * 获取商品列表
      */
-    List<MallGoods> getGoodsList(String category, Integer status);
+    List<MallGoods> getGoodsList(String category, Integer status, String name);
 
     /**
      * 获取商品详情

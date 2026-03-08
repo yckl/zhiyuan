@@ -20,7 +20,7 @@
           class="filter-item"
           @change="handleQuery"
         >
-          <el-option label="待审核" :value="0" />
+          <el-option label="待审" :value="0" />
           <el-option label="正常" :value="1" />
           <el-option label="已禁用" :value="2" />
         </el-select>
@@ -238,7 +238,7 @@ const handleStatusChange = async (row: any) => {
   // Actually, v-model changed it.
   
   try {
-    await ElMessageBox.confirm(`确定要${actionText}该组织者吗？`, '提示', {
+    await ElMessageBox.confirm(`确定${actionText}该组织者吗？`, '提示', {
         type: newStatus ? 'success' : 'warning'
     })
     

@@ -2,6 +2,7 @@ package com.volunteer.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.volunteer.common.Result;
+import com.volunteer.common.annotation.CheckSensitive;
 import com.volunteer.dto.ReviewRequest;
 import com.volunteer.service.ReviewService;
 import com.volunteer.security.SecurityUtils;
@@ -28,6 +29,7 @@ public class VolunteerReviewController {
      * 提交评价
      */
     @PostMapping("/add")
+    @CheckSensitive(fields = { "content" })
     @Operation(summary = "提交评价", description = "对已完成的活动进行评价")
     @PreAuthorize("hasRole('VOLUNTEER')")
     public Result<String> addReview(@Valid @RequestBody ReviewRequest request) {

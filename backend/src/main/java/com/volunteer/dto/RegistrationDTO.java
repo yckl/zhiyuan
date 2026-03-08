@@ -78,4 +78,10 @@ public class RegistrationDTO {
 
     @Schema(description = "报名时间")
     private LocalDateTime createTime;
+
+    @Schema(description = "证书ID")
+    private Long certificateId;
+
+    @Schema(description = "是否有证书")
+    private Boolean hasCertificate;
 }

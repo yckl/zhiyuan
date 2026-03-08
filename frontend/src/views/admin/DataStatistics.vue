@@ -63,9 +63,9 @@
       </div>
     </div>
 
-    <!-- 趋势图 -->
+    <!-- 趋势?-->
     <div class="trend-card" v-loading="loading.trend">
-      <h3>近6个月报名趋势</h3>
+      <h3>近 6 个月报名趋势</h3>
       <div ref="lineChartRef" class="chart-container-wide"></div>
     </div>
   </div>
@@ -190,13 +190,19 @@ const fetchTrendStats = async () => {
 const initPieChart = () => {
   if (!pieChartRef.value || pieData.value.length === 0) return
 
+  const isMobile = window.innerWidth < 768
   pieChart = echarts.init(pieChartRef.value)
   const option: echarts.EChartsOption = {
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c} ({d}%)'
     },
-    legend: {
+    legend: isMobile ? {
+      bottom: '0%',
+      left: 'center',
+      itemWidth: 14,
+      itemHeight: 14
+    } : {
       orient: 'vertical',
       right: 20,
       top: 'middle'
@@ -205,8 +211,8 @@ const initPieChart = () => {
     series: [{
       name: '活动分类',
       type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['40%', '50%'],
+      radius: isMobile ? ['35%', '60%'] : ['40%', '70%'],
+      center: isMobile ? ['50%', '45%'] : ['40%', '50%'],
       avoidLabelOverlap: false,
       itemStyle: {
         borderRadius: 10,
@@ -219,7 +225,7 @@ const initPieChart = () => {
       emphasis: {
         label: {
           show: true,
-          fontSize: 16,
+          fontSize: isMobile ? 16 : 20,
           fontWeight: 'bold'
         }
       },
@@ -247,12 +253,12 @@ const initBarChart = () => {
     },
     xAxis: {
       type: 'value',
-      axisLabel: { color: '#666' }
+      axisLabel: { color: '#909399' }
     },
     yAxis: {
       type: 'category',
       data: barData.colleges.slice().reverse(),
-      axisLabel: { color: '#333' }
+      axisLabel: { color: '#909399' }
     },
     series: [{
       name: '报名人次',
@@ -296,14 +302,14 @@ const initLineChart = () => {
     xAxis: {
       type: 'category',
       data: months,
-      axisLabel: { color: '#666' }
+      axisLabel: { color: '#909399' }
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: '#666' }
+      axisLabel: { color: '#909399' }
     },
     series: [{
-      name: '报名数',
+      name: '报名人次',
       type: 'line',
       smooth: true,
       data: counts,
@@ -343,6 +349,33 @@ const handleResize = () => {
   pieChart?.resize()
   barChart?.resize()
   lineChart?.resize()
+  
+  // 重新计算饼图布局
+  if (pieChart) {
+     const isMobile = window.innerWidth < 768
+     pieChart.setOption({
+        legend: isMobile ? {
+           bottom: '0%',
+           left: 'center',
+           orient: 'horizontal',
+           right: 'auto',
+           top: 'auto'
+        } : {
+           orient: 'vertical',
+           right: 20,
+           top: 'middle',
+           bottom: 'auto',
+           left: 'auto'
+        },
+        series: [{
+           radius: isMobile ? ['35%', '60%'] : ['40%', '70%'],
+           center: isMobile ? ['50%', '45%'] : ['40%', '50%'],
+           emphasis: {
+              label: { fontSize: isMobile ? 16 : 20 }
+           }
+        }]
+     })
+  }
 }
 
 onMounted(async () => {
@@ -376,11 +409,18 @@ onUnmounted(() => {
   h2 {
     margin: 0 0 8px;
     font-size: 24px;
+    color: var(--text-primary);
   }
 
   .subtitle {
     margin: 0;
-    color: #999;
+    color: var(--text-muted);
+  }
+
+  @media (max-width: 768px) {
+    h2 { font-size: 20px; }
+    .subtitle { font-size: 13px; }
+    margin-bottom: 16px;
   }
 }
 
@@ -396,22 +436,24 @@ onUnmounted(() => {
 
   @media (max-width: 600px) {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 }
 
 .stat-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-light);
+  border: 1px solid var(--border-light);
   transition: all 0.3s;
 
   &:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-main);
   }
 
   .stat-icon {
@@ -446,13 +488,13 @@ onUnmounted(() => {
       display: block;
       font-size: 28px;
       font-weight: bold;
-      color: #333;
+      color: var(--text-primary);
       line-height: 1.2;
     }
 
     .stat-label {
       font-size: 14px;
-      color: #999;
+      color: var(--text-secondary);
     }
   }
 }
@@ -469,23 +511,37 @@ onUnmounted(() => {
 }
 
 .chart-card, .trend-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-light);
+  border: 1px solid var(--border-light);
+  overflow: hidden; // Prevent scrollbars
 
   h3 {
     margin: 0 0 16px;
     font-size: 16px;
-    color: #333;
+    color: var(--text-primary);
   }
 }
 
 .chart-container {
   height: 300px;
+  width: 100%;
 }
 
 .chart-container-wide {
   height: 280px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .chart-container {
+    height: 320px; // Increase height for mobile to fit legend
+  }
+  
+  .chart-card, .trend-card {
+     padding: 16px; // Reduce padding on mobile
+  }
 }
 </style>

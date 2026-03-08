@@ -19,15 +19,15 @@
         </el-form-item>
         <el-form-item label="每小时服务积分">
            <el-input-number v-model="form.service_points_per_hour" :min="0" />
-           <span style="margin-left:10px; color:#999">志愿者每服务1小时获得的积分</span>
+           <span class="help-text">志愿者每服务1小时获得的的积分</span>
         </el-form-item>
         <el-form-item label="活动自动审核">
            <el-switch v-model="form.activity_auto_audit_bool" active-text="开启" inactive-text="关闭" />
-           <div style="margin-left:10px; color:#999; font-size:12px">开启后，组织者发布的活动将直接上线</div>
+           <div class="help-block">开启后，组织者发布的活动将直接上</div>
         </el-form-item>
         <el-form-item label="系统维护模式">
            <el-switch v-model="form.maintenance_mode_bool" active-text="开启" inactive-text="关闭" />
-           <div style="margin-left:10px; color:#999; font-size:12px">开启后，除管理员外其他用户无法登录</div>
+           <div class="help-block">开启后，除管理员外其他用户无法登录</div>
         </el-form-item>
         
         <el-form-item>
@@ -92,5 +92,69 @@ onMounted(fetchData)
 </script>
 
 <style scoped>
-.app-container { padding: 20px; }
+.app-container {
+  padding: 20px;
+  background: var(--bg-page);
+  min-height: calc(100vh - 84px);
+}
+
+.card-header {
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.help-text {
+  margin-left: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.help-block {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+:deep(.el-card) {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 12px;
+  }
+  
+  :deep(.el-form) {
+    max-width: 100% !important;
+  }
+  
+  :deep(.el-form-item) {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    
+    .el-form-item__label {
+      text-align: left;
+      margin-bottom: 8px;
+      width: 100% !important;
+    }
+    
+    .el-form-item__content {
+      margin-left: 0 !important;
+      width: 100%;
+      
+      .el-input, .el-input-number {
+        width: 100% !important;
+      }
+    }
+  }
+  
+  .help-text {
+    margin-left: 0;
+    margin-top: 4px;
+    display: block;
+  }
+}
 </style>

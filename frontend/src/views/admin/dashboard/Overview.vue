@@ -56,13 +56,13 @@
       </el-col>
     </el-row>
 
-    <!-- 2. 中间图表区 -->
+    <!-- 2. 中间图表 -->
     <el-row :gutter="20" class="charts-row">
       <el-col :xs="24" :sm="24" :md="14" :lg="14">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>近 7 天活动报名趋势</span>
+               <span>近 7 天活动报名趋势</span>
             </div>
           </template>
           <div ref="lineChartRef" class="chart-container"></div>
@@ -86,11 +86,11 @@
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>待处理审批</span>
+              <span>待处理审核</span>
               <el-button text type="primary">查看全部</el-button>
             </div>
           </template>
-          <el-table :data="pendingTasks" style="width: 100%" stripe>
+          <el-table :data="pendingTasks" style="width: 100%" stripe class="hidden-sm-and-down">
             <el-table-column prop="type" label="任务类型" width="120">
               <template #default="scope">
                 <el-tag :type="scope.row.type === '组织认证' ? 'warning' : 'danger'">
@@ -98,7 +98,7 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="source" label="来源" min-width="150" />
+            <el-table-column prop="source" label="来源" min-width="150" show-overflow-tooltip />
             <el-table-column prop="submitTime" label="申请时间" width="180">
               <template #default="scope">
                 {{ formatTime(scope.row.submitTime) }}
@@ -115,6 +115,35 @@
               </template>
             </el-table-column>
           </el-table>
+
+          <!-- Mobile Card List -->
+          <div class="hidden-md-and-up mobile-task-list">
+             <div v-for="(task, index) in pendingTasks" :key="index" class="mobile-task-card">
+                <div class="card-header">
+                   <div class="header-left">
+                      <el-tag :type="task.type === '组织认证' ? 'warning' : 'danger'" size="small">
+                         {{ task.type }}
+                      </el-tag>
+                      <span class="source-text">{{ task.source }}</span>
+                   </div>
+                   <el-tag size="small" type="info">{{ task.status }}</el-tag>
+                </div>
+                
+                <div class="card-body">
+                   <div class="info-row">
+                      <span class="label">申请时间:</span>
+                      <span class="value">{{ formatTime(task.submitTime) }}</span>
+                   </div>
+                </div>
+
+                <div class="card-footer">
+                   <el-button link type="primary" size="small" @click="handleAction(task)">
+                      立即处理 <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+                   </el-button>
+                </div>
+             </div>
+             <el-empty v-if="pendingTasks.length === 0" description="暂无待办事项" :image-size="60" />
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -181,9 +210,28 @@ const initCharts = (data: any) => {
   lineChart = echarts.init(lineChartRef.value)
   const lineOption = {
     tooltip: { trigger: 'axis' },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: { type: 'category', boundaryGap: false, data: data.trendDates },
-    yAxis: { type: 'value' },
+    grid: { 
+       left: '3%', 
+       right: '4%', 
+       bottom: '3%', 
+       top: '15%', // 增加顶部间距防止标题重叠
+       containLabel: true 
+    },
+    xAxis: { 
+      type: 'category', 
+      boundaryGap: false, 
+      data: data.trendDates,
+      axisLabel: { color: '#909399' }
+    },
+    yAxis: { 
+      type: 'value',
+      axisLabel: { color: '#909399' },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(255, 255, 255, 0.1)' // 弱化分割?
+        }
+      }
+    },
     series: [
       {
         name: '报名人次',
@@ -200,23 +248,32 @@ const initCharts = (data: any) => {
 
   // Pie Chart
   pieChart = echarts.init(pieChartRef.value)
+  const isMobile = window.innerWidth < 768
   const pieOption = {
     tooltip: { trigger: 'item' },
-    legend: { bottom: '0%', left: 'center' },
+    legend: { 
+       bottom: '0%', 
+       left: 'center',
+       itemWidth: 14,
+       itemHeight: 14,
+       textStyle: { color: '#909399' }
+    },
     series: [
       {
         name: '活动分类',
         type: 'pie',
-        radius: ['40%', '70%'],
+        // 移动端缩小半径防止重?
+        radius: isMobile ? ['35%', '60%'] : ['40%', '70%'],
+        center: ['50%', '45%'], // 稍微上移留给图例空间
         avoidLabelOverlap: false,
         itemStyle: {
           borderRadius: 10,
-          borderColor: '#fff',
+          borderColor: 'var(--bg-card)', // 使用变量适配主题
           borderWidth: 2
         },
         label: { show: false, position: 'center' },
         emphasis: {
-          label: { show: true, fontSize: 20, fontWeight: 'bold' }
+          label: { show: true, fontSize: isMobile ? 16 : 20, fontWeight: 'bold' }
         },
         data: data.pieData
       }
@@ -229,6 +286,19 @@ const initCharts = (data: any) => {
 const handleResize = () => {
   lineChart?.resize()
   pieChart?.resize()
+  
+  // 重新计算饼图 Radius
+  if (pieChart) {
+     const isMobile = window.innerWidth < 768
+     pieChart.setOption({
+        series: [{
+           radius: isMobile ? ['35%', '60%'] : ['40%', '70%'],
+           emphasis: {
+              label: { fontSize: isMobile ? 16 : 20 }
+           }
+        }]
+     })
+  }
 }
 
 // Dark Mode Handling (Simple Observer)
@@ -279,11 +349,13 @@ const handleAction = (task: any) => {
   height: 100px;
   display: flex;
   align-items: center;
-  border: none;
+  border: 1px solid var(--border-light);
   transition: transform 0.3s;
+  box-shadow: var(--shadow-light);
   
   &:hover {
     transform: translateY(-5px);
+    box-shadow: var(--shadow-main);
   }
 
   .stats-content {
@@ -332,7 +404,7 @@ const handleAction = (task: any) => {
 }
 
 .purple-card {
-  background: linear-gradient(135deg, #a18cd1, #CA72D1); // Purple
+  background: linear-gradient(135deg, #a18cd1, #CA72D1);
   .icon-wrapper { background: rgba(255, 255, 255, 0.2); }
 }
 
@@ -346,8 +418,15 @@ const handleAction = (task: any) => {
 }
 
 .chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  box-shadow: var(--shadow-light);
+  overflow: hidden;
+
   .chart-container {
     height: 350px;
+    width: 100%;
   }
 }
 
@@ -356,65 +435,161 @@ const handleAction = (task: any) => {
   justify-content: space-between;
   align-items: center;
   font-weight: bold;
+  color: var(--text-primary);
 }
 
-// Dark Mode Adaptation
-:deep(.dark) {
+// Tasks row table card
+.tasks-row {
+   :deep(.el-card) {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      box-shadow: var(--shadow-light);
+   }
+}
+
+// Dark Mode Adaptation (Global handle)
+html.dark {
   .stats-card {
-    opacity: 0.9;
-  }
-  .chart-card {
-    background-color: var(--el-bg-color-overlay);
+    opacity: 0.85; // Slightly lower opacity for gradients in dark mode
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 
-// 移动端响应式适配 - 2x2 田字格布局
+/* 移动端响应式适配 */
 @media (max-width: 768px) {
   .dashboard-container {
-    padding: 8px;
+    padding: 20px 10px 10px 10px; // Increased top padding to separate from header
   }
   
   .stats-row {
     margin-bottom: 12px;
     
-    // 减小 gutter
     .el-col {
-      padding-left: 6px !important;
-      padding-right: 6px !important;
+      padding-left: 5px !important;
+      padding-right: 5px !important;
+      margin-bottom: 10px;
     }
   }
   
   .stats-card {
-    height: 70px;
-    margin-bottom: 10px;
+    height: 80px;
     border-radius: 8px;
     
     :deep(.el-card__body) {
-      padding: 8px !important;
+      padding: 0 !important;
     }
     
     .stats-content {
-      padding: 0 8px;
+      padding: 0 10px 0 24px; // Left padding to align icons, roughly centered
+      height: 100%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: flex-start; // Align left to ensure icons line up
     }
     
     .icon-wrapper {
-      width: 36px;
-      height: 36px;
-      font-size: 18px;
-      margin-right: 8px;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      margin-right: 12px; // Slightly increase gap
+      flex-shrink: 0; // Prevent shrinking
     }
     
     .info {
-      .label { font-size: 11px; }
-      .value { font-size: 16px; }
+      flex: initial; // Allow centering
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      .label { 
+         font-size: 11px; 
+         text-align: left; // Keep text left-aligned relative to itself
+         margin-bottom: 2px;
+      }
+      .value { 
+         font-size: 18px; 
+         line-height: 1.2;
+         text-align: left;
+      }
     }
   }
   
   .chart-card {
     margin-bottom: 12px;
+    border-radius: 8px;
     
     .chart-container {
-      height: 220px;
+      height: 260px; // Slightly increased for mobile to accommodate legend
+    }
+  }
+
+  /* Mobile Task List */
+  .mobile-task-list {
+     background: var(--bg-page);
+     padding: 4px;
+
+     .mobile-task-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow-light);
+
+        .card-header {
+           display: flex;
+           justify-content: space-between;
+           align-items: center;
+           margin-bottom: 12px;
+           padding-bottom: 8px;
+           border-bottom: 1px solid var(--border-light);
+
+           .header-left {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              
+              .source-text {
+                 font-weight: bold;
+                 font-size: 14px;
+                 color: var(--text-primary);
+              }
+           }
+        }
+
+        .card-body {
+           margin-bottom: 12px;
+           .info-row {
+              display: flex;
+              justify-content: space-between;
+              font-size: 13px;
+              color: var(--text-secondary);
+              
+              .value { color: var(--text-primary); }
+           }
+        }
+
+        .card-footer {
+           display: flex;
+           justify-content: flex-end;
+           border-top: 1px solid var(--border-light);
+           padding-top: 8px;
+        }
+     }
+  }
+}
+
+/* 按钮文字高对比度修复：全部强制白?*/
+.dashboard-container {
+  :deep(.el-button--primary),
+  :deep(.el-button--success) {
+    color: #ffffff !important;
+  }
+
+  .card-header {
+    :deep(.el-button) {
+      color: #ffffff !important;
+      font-weight: 500;
     }
   }
 }

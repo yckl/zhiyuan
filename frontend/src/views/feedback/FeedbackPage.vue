@@ -1,9 +1,15 @@
 <template>
   <div class="feedback-page">
     <div class="background-gradient"></div>
-    
+
     <div class="content-wrapper">
-      <!-- 主反馈卡片 -->
+
+      <!-- ==================== 顶部 ==================== -->
+      <div class="topbar">
+        <span class="topbar-title">📮 问题反馈</span>
+      </div>
+
+      <!-- ==================== 主表单卡片 ==================== -->
       <transition name="fade-slide-up" appear>
         <div class="glass-card main-card">
           <div class="card-header">
@@ -17,79 +23,87 @@
           </div>
 
           <el-form :model="form" label-position="top" class="feedback-form" ref="formRef">
-            <!-- 布局填空荡优化这里：反馈类型 -->
+            <!-- 反馈类型 -->
             <div class="form-section stagger-1">
               <label class="section-label">您想反馈哪类问题？</label>
-              <div class="type-grid">
-                <div 
-                  v-for="item in typeOptions" 
+              <div class="type-grid-premium">
+                <div
+                  v-for="item in typeOptions"
                   :key="item.value"
-                  class="type-card glass-button"
+                  class="type-card-premium"
                   :class="{ active: form.type === item.value }"
                   @click="form.type = item.value"
                 >
+                  <div class="icon-box" :style="{ background: item.bg }">
+                    <el-icon :size="24"><component :is="item.icon" /></el-icon>
+                  </div>
                   <span class="type-label">{{ item.label }}</span>
-                  <div class="active-glow" v-if="form.type === item.value"></div>
+                  <div class="selection-indicator"></div>
                 </div>
               </div>
             </div>
 
-            <!-- 布局填空荡优化这里：反馈内容 -->
+            <!-- 反馈内容 -->
             <div class="form-section stagger-2">
+              <label class="section-label">反馈内容</label>
               <div class="input-wrapper">
                 <el-input
                   v-model="form.content"
                   type="textarea"
                   :rows="8"
-                  placeholder="请详细描述您遇到的问题或建议，您的详细描述有助于我们要快速定位问题..."
+                  placeholder="请详细描述您遇到的问题或建议..."
                   maxlength="1000"
-                  show-word-limit
                   class="custom-textarea"
                 />
+                <div class="word-count-bar">
+                  <el-tag
+                    :type="wordCountType"
+                    size="small"
+                    round
+                    effect="plain"
+                  >{{ form.content.length }} / 1000 </el-tag>
+                </div>
               </div>
             </div>
 
-            <!-- 布局填空荡优化这里：联系方式 -->
+            <!-- 联系方式 -->
             <div class="form-section stagger-3">
+              <label class="section-label">联系方式</label>
               <div class="input-wrapper">
                 <el-input
                   v-model="form.contactInfo"
-                  placeholder="请留下您的联系方式（手机号/邮箱），方便我们向您反馈处理结果"
+                  placeholder="手机号或邮箱，方便我们反馈处理结果"
                   class="custom-input"
                 >
                   <template #prefix>
-                    <el-icon class="input-icon"><iphone /></el-icon>
+                    <el-icon class="input-icon"><Iphone /></el-icon>
                   </template>
                 </el-input>
               </div>
             </div>
 
-            <!-- 布局填空荡优化这里：提交按钮 -->
-            <div class="form-footer stagger-4">
-              <div class="agreement">
-                <el-checkbox v-model="agreement" size="large">
-                  我已阅读并同意 <span class="link">《用户反馈协议》</span>
+            <!-- 提交区域 (合并至卡片内部) -->
+            <div class="form-submit-area stagger-4">
+              <div class="agreement-area">
+                <el-checkbox v-model="agreement" size="small">
+                  我已阅读并同意<span class="link">《用户反馈协议》</span>
                 </el-checkbox>
               </div>
-              
-              <el-button 
-                type="primary" 
-                size="large" 
-                class="submit-btn" 
-                @click="handleSubmit" 
-                :loading="submitting"
-                :disabled="!agreement"
+              <button
+                type="button"
+                class="submit-btn-premium"
+                :disabled="!agreement || submitting"
+                @click="handleSubmit"
               >
                 <el-icon class="btn-icon"><Position /></el-icon>
-                <span>提交反馈</span>
-                <div class="btn-glow"></div>
-              </el-button>
+                <span>{{ submitting ? '提交中...' : '提交反馈' }}</span>
+              </button>
             </div>
           </el-form>
         </div>
       </transition>
 
-      <!-- 提示卡片下移 -->
+      <!-- 温馨提示 -->
       <transition name="fade-slide-up" appear>
         <div class="glass-card tips-card stagger-5">
           <div class="tips-header">
@@ -97,7 +111,7 @@
             <span>温馨提示</span>
           </div>
           <div class="tips-content">
-            <p>我们会认真对待每一条反馈，处理结果将通过站内信通知您。</p>
+            <p>我们会认真对待每一条反馈，处理结果将通过站内信通知您</p>
             <p>如遇紧急账号安全问题，请直接联系人工客服：400-888-8888</p>
           </div>
         </div>
@@ -107,14 +121,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { request } from '@/utils/request'
 import { ElMessage } from 'element-plus'
-import { ChatDotRound, Position, Iphone, InfoFilled } from '@element-plus/icons-vue'
+import {
+  ChatDotRound, Position, Iphone, InfoFilled,
+  Opportunity, CircleClose, Warning, MoreFilled
+} from '@element-plus/icons-vue'
 
 const submitting = ref(false)
 const agreement = ref(true)
-const formRef = ref()
 
 const form = reactive({
   type: 'SUGGESTION',
@@ -123,29 +139,29 @@ const form = reactive({
 })
 
 const typeOptions = [
-  { label: '💡 功能建议', value: 'SUGGESTION' },
-  { label: '🐛 问题BUG', value: 'BUG' },
-  { label: '😠 投诉反馈', value: 'COMPLAINT' },
-  { label: '📝 其他事项', value: 'OTHER' }
+  { label: '功能建议', value: 'SUGGESTION', icon: Opportunity, bg: 'linear-gradient(135deg, #FFD93D, #FF9100)' },
+  { label: '问题BUG', value: 'BUG', icon: CircleClose, bg: 'linear-gradient(135deg, #FF6B6B, #EE5A24)' },
+  { label: '投诉反馈', value: 'COMPLAINT', icon: Warning, bg: 'linear-gradient(135deg, #A29BFE, #6C5CE7)' },
+  { label: '其他事项', value: 'OTHER', icon: MoreFilled, bg: 'linear-gradient(135deg, #95A5A6, #7F8C8D)' }
 ]
 
-const handleSubmit = async () => {
-  if (!form.content.trim()) {
-    return ElMessage.warning('请填写反馈内容')
-  }
-  if (!form.contactInfo.trim()) {
-    return ElMessage.warning('请填写联系方式')
-  }
+const wordCountType = computed(() => {
+  if (form.content.length > 900) return 'danger'
+  if (form.content.length > 700) return 'warning'
+  return 'info'
+})
 
-  submitting.value = true
+const handleSubmit = async () => {
   try {
+    if (!form.content.trim()) return ElMessage.warning('请填写反馈内容')
+    if (!form.contactInfo.trim()) return ElMessage.warning('请填写联系方式')
+    submitting.value = true
     await request.post('/feedback/submit', form)
     ElMessage.success({
-      message: '反馈提交成功！我们会尽快处理',
+      message: '🎉 反馈提交成功！我们会尽快处理',
       duration: 3000,
       showClose: true
     })
-    // 重置表单
     form.content = ''
     form.contactInfo = ''
     form.type = 'SUGGESTION'
@@ -158,8 +174,7 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped lang="scss">
-// 变量定义
-$primary-color: #00BFA6;
+$primary-color: #00BF9E; // Updated primary color to teal
 $gradient-bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 $card-bg: rgba(255, 255, 255, 0.65);
 $card-border: 1px solid rgba(255, 255, 255, 0.4);
@@ -173,18 +188,31 @@ $text-secondary: #606266;
   width: 100%;
   display: flex;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 0 20px 100px; /* 确保不被底部导航栏遮挡 */
   overflow-y: auto;
-  
-  // 背景渐变
+
   .background-gradient {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(135deg, #e0eafe 0%, #f0fdf4 100%); // 浅灰青渐变
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: linear-gradient(135deg, #e0eafe 0%, #f0fdf4 100%);
     z-index: -1;
+  }
+}
+
+// ================================================================
+// 顶部?
+// ================================================================
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 0 12px;
+
+  .topbar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: $text-main;
   }
 }
 
@@ -193,261 +221,249 @@ $text-secondary: #606266;
   max-width: 800px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
-// 通用玻璃卡片样式
 .glass-card {
   background: $card-bg;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: $card-border;
-  border-radius: 32px;
+  border-radius: 24px;
   box-shadow: $card-shadow;
-  padding: 40px;
+  padding: 32px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 
-  &:hover {
-    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.1);
-  }
+  &:hover { box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.1); }
 }
 
-// 主卡片头部
 .main-card {
   .card-header {
     text-align: center;
-    margin-bottom: 40px;
-    
+    margin-bottom: 32px;
+
     .icon-wrapper {
-      width: 64px;
-      height: 64px;
-      background: linear-gradient(135deg, $primary-color, lighten($primary-color, 20%));
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 56px; height: 56px;
+      background: linear-gradient(135deg, $primary-color, lighten($primary-color, 15%));
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
       color: white;
-      margin: 0 auto 20px;
-      box-shadow: 0 10px 20px rgba($primary-color, 0.3);
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 16px rgba($primary-color, 0.3);
       animation: float 6s ease-in-out infinite;
     }
 
-    .header-text {
-      .title {
-        font-size: 28px;
-        color: $text-main;
-        margin: 0 0 12px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-      }
-      
-      .subtitle {
-        font-size: 16px;
-        color: $text-secondary;
-        margin: 0;
-      }
-    }
+    .title { font-size: 24px; color: $text-main; margin: 0 0 8px; font-weight: 700; }
+    .subtitle { font-size: 14px; color: $text-secondary; margin: 0; }
   }
 }
 
-// 表单区域
 .feedback-form {
   .form-section {
-    margin-bottom: 32px;
-    
+    margin-bottom: 24px;
+
     .section-label {
       display: block;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
       color: $text-main;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
   }
 }
 
-// 反馈类型选择
-.type-grid {
+.type-grid-premium {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  @media (max-width: 600px) { grid-template-columns: repeat(2, 1fr); }
 }
 
-.type-card {
+.type-card-premium {
   position: relative;
-  height: 60px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1.5px solid transparent;
+  border-radius: 18px;
+  padding: 16px 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 16px;
+  gap: 10px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  .icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s;
+  }
 
   .type-label {
-    font-size: 15px;
-    color: $text-secondary;
-    font-weight: 500;
-    z-index: 2;
-    transition: color 0.3s;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
   }
 
   &.active {
-    background: white;
-    border-color: $primary-color;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba($primary-color, 0.15);
+    background: #fff;
+    border-color: var(--primary-color);
+    box-shadow: 0 8px 24px rgba(0, 191, 166, 0.12);
+    transform: translateY(-4px);
 
-    .type-label {
-      color: $primary-color;
-      font-weight: 600;
-    }
+    .icon-box { transform: scale(1.1); }
+    .type-label { color: var(--primary-color); }
 
-    .active-glow {
+    .selection-indicator {
       position: absolute;
-      inset: 0;
-      background: radial-gradient(circle at center, rgba($primary-color, 0.1) 0%, transparent 70%);
-      animation: pulse 2s infinite;
+      top: 8px;
+      right: 8px;
+      width: 8px;
+      height: 8px;
+      background: var(--primary-color);
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(0, 191, 166, 0.6);
     }
   }
 
   &:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
   }
 }
 
-// 输入框统一样式
 .custom-textarea :deep(.el-textarea__inner),
 .custom-input :deep(.el-input__wrapper) {
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 16px;
-  box-shadow: none;
-  transition: all 0.3s ease;
-  font-size: 15px;
-  padding: 16px;
+  background: #F5F7FA !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  transition: all 0.25s !important;
+  font-size: 14px;
+  padding: 14px;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.8);
-  }
+  &:hover { background: #EEF1F6 !important; }
 
   &.is-focus, &:focus-within {
-    background: white;
-    border-color: $primary-color;
-    box-shadow: 0 0 0 4px rgba($primary-color, 0.1);
+    background: white !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 4px rgba(0, 191, 166, 0.1) !important;
   }
 }
 
-.custom-textarea :deep(.el-textarea__inner) {
-  min-height: 180px !important; // 固定高度
-  resize: none;
-}
+.custom-textarea :deep(.el-textarea__inner) { min-height: 160px !important; resize: none; }
+.custom-input :deep(.el-input__wrapper) { height: 48px; }
+.input-icon { font-size: 18px; color: #9aa5b1; margin-right: 6px; }
 
-.custom-input :deep(.el-input__wrapper) {
-  height: 52px;
-}
-
-.input-icon {
-  font-size: 20px;
-  color: #9aa5b1;
-  margin-right: 8px;
-}
-
-// 底部按钮区
-.form-footer {
+.word-count-bar {
   display: flex;
-  flex-direction: column;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+// ================================================================
+// 表单提交区域 (PC 与 移动端适配)
+// ================================================================
+.form-submit-area {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 24px;
-  margin-top: 40px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px dashed #ebeef5; /* 增加层次感 */
 
-  .agreement {
+  .agreement-area {
+    font-size: 13px;
+    color: #909399;
     .link {
-      color: $primary-color;
+      color: var(--el-color-primary);
       cursor: pointer;
-      &:hover { text-decoration: underline; }
+      font-weight: 600;
+      transition: opacity 0.2s;
+      &:hover { opacity: 0.8; }
+    }
+    :deep(.el-checkbox__label) {
+      font-size: 13px;
+      color: #909399;
     }
   }
 
-  .submit-btn {
-    width: 100%;
-    height: 56px;
-    border-radius: 28px; // 全圆角
-    font-size: 18px;
-    font-weight: 600;
-    background: linear-gradient(135deg, $primary-color, darken($primary-color, 10%));
+  .submit-btn-premium {
+    width: 140px;
+    height: 40px;
     border: none;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 30px rgba($primary-color, 0.4);
-    }
-
-    &:active {
-      transform: scale(0.98);
-    }
-
-    .btn-icon {
-      margin-right: 8px;
-      font-size: 20px;
-    }
-
-    .btn-glow {
-      position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%);
-      transform: scale(0);
-      transition: transform 0.5s;
-    }
-
-    &:hover .btn-glow {
-      transform: scale(1);
-      animation: ripple 1s linear infinite;
-    }
-  }
-}
-
-// 底部提示小卡片
-.tips-card {
-  padding: 24px 32px;
-  border-radius: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-
-  .tips-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    background: var(--el-color-primary);
+    color: #fff;
+    border-radius: 8px;
     font-size: 16px;
     font-weight: 600;
-    color: $text-main;
-  }
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: none; /* 移除绿色发光阴影 */
 
-  .tips-content {
-    font-size: 14px;
-    color: $text-secondary;
-    line-height: 1.6;
-    margin: 0;
-    p { margin: 4px 0; }
+    &:hover:not(:disabled) {
+      filter: brightness(1.1);
+      box-shadow: 0 4px 12px rgba(0, 180, 182, 0.2); /* 轻微底部阴影 */
+      transform: translateY(-1px);
+    }
+    &:active:not(:disabled) { transform: translateY(0); }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   }
 }
 
-// 动画定义
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .form-submit-area {
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: 24px;
+    border-top: none;
+    padding-top: 0;
+
+    .agreement-area {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .submit-btn-premium {
+      width: 100%;
+      height: 48px;
+      border-radius: 24px; /* 胶囊形状 */
+      max-width: none;
+    }
+  }
+}
+
+.tips-card {
+  padding: 20px 24px;
+  border-radius: 20px;
+  .tips-header { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: $text-main; }
+  .tips-content { font-size: 13px; color: $text-secondary; line-height: 1.6; p { margin: 4px 0; } }
+}
+
+
+
+// ================================================================
+// Animations
+// ================================================================
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-8px); }
 }
 
 @keyframes pulse {
@@ -456,21 +472,9 @@ $text-secondary: #606266;
   100% { opacity: 0.4; transform: scale(0.8); }
 }
 
-@keyframes ripple {
-  0% { transform: scale(0.8); opacity: 1; }
-  100% { transform: scale(2); opacity: 0; }
-}
+.fade-slide-up-enter-active { transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+.fade-slide-up-enter-from { opacity: 0; transform: translateY(40px); }
 
-// 进场动画
-.fade-slide-up-enter-active {
-  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.fade-slide-up-enter-from {
-  opacity: 0;
-  transform: translateY(40px);
-}
-
-// 级联动画延迟
 .stagger-1 { animation: slideIn 0.6s ease-out 0.1s both; }
 .stagger-2 { animation: slideIn 0.6s ease-out 0.2s both; }
 .stagger-3 { animation: slideIn 0.6s ease-out 0.3s both; }
@@ -482,44 +486,47 @@ $text-secondary: #606266;
   to { opacity: 1; transform: translateY(0); }
 }
 
-// 响应式微调
+// ================================================================
+// 响应式
+// ================================================================
 @media (max-width: 768px) {
-  .feedback-page { 
-    padding: 20px 16px; 
-  }
-  
-  .glass-card {
-    padding: 24px 20px;
-    border-radius: 24px;
+  .feedback-page { padding: 0 16px 32px; }
+  .glass-card { padding: 20px 16px; border-radius: 20px; }
+  .main-card .card-header .title { font-size: 20px !important; }
+
+  .preview-drawer {
+    :deep(.el-drawer) { width: 85% !important; }
   }
 
-  .header-text .title { font-size: 24px !important; }
+  .main-card { margin-bottom: 20px; }
+  
+  .feedback-footer-glass {
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px;
+    .submit-btn-premium { max-width: 100%; width: 100%; }
+    .agreement-area { margin-right: 0; }
+  }
 }
 
-// 暗黑模式适配 (简单反色 + 调整透明度)
+// ================================================================
+// 暗黑模式
+// ================================================================
 .dark {
-  .background-gradient {
-    background: linear-gradient(135deg, #1a1c22 0%, #29323c 100%);
-  }
-  
+  .background-gradient { background: linear-gradient(135deg, #1a1c22 0%, #29323c 100%); }
+
   .glass-card {
     background: rgba(30, 30, 30, 0.6);
     border-color: rgba(255, 255, 255, 0.1);
-    
-    .header-text .title { color: #e5eaf3; }
-    .header-text .subtitle { color: #a3a6ad; }
-    .section-label { color: #e5eaf3; }
+    .title { color: #e5eaf3; }
+    .subtitle, .section-label { color: #a3a6ad; }
   }
-  
+
   .type-card {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
     .type-label { color: #a3a6ad; }
-
-    &.active {
-      background: rgba($primary-color, 0.2);
-      .type-label { color: $primary-color; }
-    }
+    &.active { background: rgba($primary-color, 0.2); .type-label { color: $primary-color; } }
   }
 
   .custom-textarea :deep(.el-textarea__inner),
@@ -527,17 +534,8 @@ $text-secondary: #606266;
     background: rgba(0, 0, 0, 0.2);
     border-color: rgba(255, 255, 255, 0.1);
     color: #e5eaf3;
-    
     &:hover { background: rgba(0, 0, 0, 0.4); }
-    &.is-focus { 
-      background: rgba(0, 0, 0, 0.5); 
-      border-color: $primary-color;
-    }
-  }
-
-  .tips-card {
-    .tips-header span { color: #e5eaf3; }
-    .tips-content { color: #a3a6ad; }
+    &.is-focus { background: rgba(0, 0, 0, 0.5); border-color: $primary-color; }
   }
 }
 </style>

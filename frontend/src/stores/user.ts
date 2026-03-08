@@ -33,13 +33,32 @@ export const useUserStore = defineStore('user', () => {
         }
     }
 
+    // 消息未读计数
+    const unreadCount = ref(0) // 新增
+
+    const fetchUnreadCount = async () => {
+        try {
+            // 这里为了避免循环引用，我们需要按需引入 request
+            // 或者假设 request 可以在这里使用，通常 store 中可以直接引入 utils/request
+            const { request } = await import('@/utils/request')
+            const res = await request.get('/message/unreadCount')
+            if (res && res.data !== undefined) {
+                unreadCount.value = res.data
+            }
+        } catch (e) {
+            console.error('获取未读消息数失败', e)
+        }
+    }
+
     return {
         userInfo,
         token,
         isLoggedIn,
         role,
+        unreadCount, // 导出
         setUser,
         clearUser,
-        setAvatar
+        setAvatar,
+        fetchUnreadCount // 导出
     }
 })

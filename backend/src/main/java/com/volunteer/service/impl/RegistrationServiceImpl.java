@@ -16,6 +16,7 @@ import com.volunteer.mapper.VolunteerMapper;
 import com.volunteer.mapper.UserPropsMapper;
 import com.volunteer.security.SecurityUtils;
 import com.volunteer.service.RegistrationService;
+import com.volunteer.vo.RegistrationStatsVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -250,6 +251,31 @@ public class RegistrationServiceImpl implements RegistrationService {
     }
 
     @Override
+    public Page<RegistrationDTO> getVolunteerRegistrations(Long volunteerId, Integer page, Integer size,
+            Integer status) {
+        Page<ActivityRegistration> pageParam = new Page<>(page, size);
+        LambdaQueryWrapper<ActivityRegistration> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ActivityRegistration::getVolunteerId, volunteerId);
+
+        if (status != null) {
+            queryWrapper.eq(ActivityRegistration::getStatus, status);
+        }
+        queryWrapper.orderByDesc(ActivityRegistration::getCreateTime);
+
+        Page<ActivityRegistration> resultPage = registrationMapper.selectPage(pageParam, queryWrapper);
+
+        // 转换为DTO
+        Page<RegistrationDTO> dtoPage = new Page<>(resultPage.getCurrent(), resultPage.getSize(),
+                resultPage.getTotal());
+        java.util.List<RegistrationDTO> dtoList = resultPage.getRecords().stream()
+                .map(this::convertToDTO)
+                .collect(java.util.stream.Collectors.toList());
+        dtoPage.setRecords(dtoList);
+
+        return dtoPage;
+    }
+
+    @Override
     public Page<RegistrationDTO> getActivityRegistrations(Long activityId, Integer page, Integer size, Integer status) {
         Page<ActivityRegistration> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<ActivityRegistration> queryWrapper = new LambdaQueryWrapper<>();
@@ -265,9 +291,9 @@ public class RegistrationServiceImpl implements RegistrationService {
         // 转换为DTO
         Page<RegistrationDTO> dtoPage = new Page<>(resultPage.getCurrent(), resultPage.getSize(),
                 resultPage.getTotal());
-        List<RegistrationDTO> dtoList = resultPage.getRecords().stream()
+        java.util.List<RegistrationDTO> dtoList = resultPage.getRecords().stream()
                 .map(this::convertToDTO)
-                .collect(Collectors.toList());
+                .collect(java.util.stream.Collectors.toList());
         dtoPage.setRecords(dtoList);
 
         return dtoPage;
@@ -523,6 +549,19 @@ public class RegistrationServiceImpl implements RegistrationService {
         dto.setRating(registration.getRating());
         dto.setRatingComment(registration.getRatingComment());
 
+        // 证书逻辑：如果状态是已完成(3)，则根据活动ID模拟生成证书ID (实际项目中这通常查证书表)
+        if (registration.getStatus() != null && registration.getStatus() == 3) {
+            // 这里为了演示逻辑合理性，仅 ID 为 5 的倍数或特定的几个活动有证书
+            if (registration.getActivityId() != null && (registration.getActivityId() % 2 == 0)) {
+                dto.setCertificateId(registration.getId() + 100000L); // 模拟ID
+                dto.setHasCertificate(true);
+            } else {
+                dto.setHasCertificate(false);
+            }
+        } else {
+            dto.setHasCertificate(false);
+        }
+
         return dto;
     }
 
@@ -559,5 +598,49 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new RuntimeException("使用免审核卡失败，请重试");
         }
         log.info("用户 {} 消耗免审核卡用于活动 {}", volunteer.getId(), activityId);
+    }
+
+    @Override
+    public byte[] exportRegistrations(Long activityId) {
+        // 暂未实现，返回空字节数组
+        return new byte[0];
+    }
+
+    @Override
+    public RegistrationStatsVO getRegistrationStats(Long activityId) {
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
+            throw new RuntimeException("活动不存在");
+        }
+
+        // 统计各状态人数
+        // Passed: 1 (CONFIRMED), 2 (SIGNED_IN), 3 (COMPLETED)
+        // Pending: 0 (REGISTERED)
+        // Rejected: 6 (REJECTED)
+
+        LambdaQueryWrapper<ActivityRegistration> query = new LambdaQueryWrapper<>();
+        query.eq(ActivityRegistration::getActivityId, activityId)
+                .eq(ActivityRegistration::getIsDeleted, 0);
+        List<ActivityRegistration> registrations = registrationMapper.selectList(query);
+
+        long passed = registrations.stream()
+                .filter(r -> r.getStatus() >= ActivityRegistration.STATUS_CONFIRMED
+                        && r.getStatus() <= ActivityRegistration.STATUS_COMPLETED)
+                .count();
+
+        long pending = registrations.stream()
+                .filter(r -> ActivityRegistration.STATUS_REGISTERED.equals(r.getStatus()))
+                .count();
+
+        long rejected = registrations.stream()
+                .filter(r -> ActivityRegistration.STATUS_REJECTED.equals(r.getStatus()))
+                .count();
+
+        return RegistrationStatsVO.builder()
+                .total(activity.getMaxParticipants())
+                .passed(passed)
+                .pending(pending)
+                .rejected(rejected)
+                .build();
     }
 }

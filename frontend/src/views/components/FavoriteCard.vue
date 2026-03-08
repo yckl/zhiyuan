@@ -25,7 +25,7 @@
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
       </svg>
     </span>
-    <span v-if="showLabel" class="label">{{ isFavorited ? '已收藏' : '收藏' }}</span>
+    <span v-if="showLabel" class="label">{{ isFavorited ? '已收藏? : '收藏' }}</span>
     <el-icon v-if="loading" class="loading-icon"><Loading /></el-icon>
   </button>
 </template>
@@ -57,7 +57,7 @@ const isFavorited = ref(props.modelValue)
 const loading = ref(false)
 const isAnimating = ref(false)
 
-// 同步外部值变化
+// 同步外部值变?
 watch(() => props.modelValue, (val) => {
   isFavorited.value = val
 })
@@ -84,7 +84,7 @@ const handleToggle = async () => {
         isAnimating.value = false
       }, 600)
       
-      ElMessage.success(res.data ? '收藏成功' : '已取消收藏')
+      ElMessage.success(res.data ? '收藏成功' : '已取消收藏?)
     } else {
       ElMessage.error(res.message || '操作失败')
     }
@@ -96,7 +96,7 @@ const handleToggle = async () => {
   }
 }
 
-// 初始化检查收藏状态
+// 初始化检查收藏状态?
 const checkStatus = async () => {
   try {
     const res = await request.get('/collection/check', {
@@ -110,7 +110,7 @@ const checkStatus = async () => {
       emit('update:modelValue', res.data)
     }
   } catch (error) {
-    console.error('检查收藏状态失败:', error)
+    console.error('检查收藏状态失败?', error)
   }
 }
 
@@ -194,7 +194,7 @@ defineExpose({
   animation: spin 1s linear infinite;
 }
 
-// 心跳动画关键帧
+// 心跳动画关键?
 @keyframes heartbeat {
   0% {
     transform: scale(1);

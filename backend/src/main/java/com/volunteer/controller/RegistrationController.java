@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.common.Result;
 import com.volunteer.dto.RegistrationDTO;
 import com.volunteer.dto.RegistrationRequest;
+import com.volunteer.vo.RegistrationStatsVO;
 import com.volunteer.entity.Activity;
 import com.volunteer.entity.ActivityRegistration;
 import com.volunteer.mapper.ActivityMapper;
@@ -134,6 +135,26 @@ public class RegistrationController {
     }
 
     /**
+     * 获取指定志愿者的报名历史 (组织者审核时查看)
+     */
+    @GetMapping("/volunteer/{volunteerId}/history")
+    @PreAuthorize("hasRole('ORGANIZER') or hasRole('ADMIN')")
+    @Operation(summary = "志愿者报名历史", description = "组织者审核时查看该志愿者的过往活动记录")
+    public Result<Page<RegistrationDTO>> getVolunteerHistory(
+            @PathVariable Long volunteerId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        try {
+            // 这里 status 传 3 表示只看已完成的，或者不传看全部。通常审核时看全部状态更有参考价值。
+            Page<RegistrationDTO> result = registrationService.getVolunteerRegistrations(volunteerId, page, size, null);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("查询志愿者报名历史失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * 审核报名 (单个)
      */
     @PostMapping("/audit")
@@ -219,7 +240,6 @@ public class RegistrationController {
     @Operation(summary = "输码签到", description = "志愿者通过输入签到码签到")
     public Result<Void> signInByCode(@RequestBody Map<String, String> params) {
         String code = params.get("code");
-        String userIdStr = params.get("userId"); // 可选，如果从token获取则不需要
 
         if (code == null || code.length() != 6) {
             return Result.error("请输入6位签到码");
@@ -320,5 +340,21 @@ public class RegistrationController {
         // 委托给 SettlementController，这里简单返回成功
         // 实际逻辑在 SettlementController 中
         return Result.success("请使用 /organizer/settlement/batch 接口", null);
+    }
+
+    /**
+     * 获取活动报名统计数据
+     */
+    @GetMapping("/stats/{activityId}")
+    @Operation(summary = "活动报名统计", description = "获取活动的报名人数统计（总人数、已通过、待审核、已拒绝）")
+    @PreAuthorize("hasRole('ORGANIZER') or hasRole('ADMIN')")
+    public Result<RegistrationStatsVO> getRegistrationStats(@PathVariable Long activityId) {
+        try {
+            RegistrationStatsVO stats = registrationService.getRegistrationStats(activityId);
+            return Result.success(stats);
+        } catch (Exception e) {
+            log.error("查询报名统计失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
     }
 }

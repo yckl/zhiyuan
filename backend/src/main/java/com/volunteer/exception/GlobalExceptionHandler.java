@@ -23,6 +23,16 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     /**
+     * 处理敏感词违规异常
+     */
+    @ExceptionHandler(SensitiveWordException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<Void> handleSensitiveWordException(SensitiveWordException e) {
+        log.warn("敏感词拦截: {}", e.getMessage());
+        return Result.error(400, e.getMessage());
+    }
+
+    /**
      * 处理参数校验异常
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)

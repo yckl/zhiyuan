@@ -3,8 +3,23 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 
 // 创建 Axios 实例
+// 判断环境：开发环境(npm run dev)用代理，生产环境(打包APK)用真实IP
+// 获取基础地址：优先从 localStorage 获取 (手动配置)，否则使用硬编码兜底
+const getBaseURL = () => {
+    if (import.meta.env.DEV) return '/api'
+
+    const savedUrl = localStorage.getItem('apiBaseUrl')
+    if (savedUrl) {
+        // 确保以 /api 结尾
+        return savedUrl.endsWith('/api') ? savedUrl : `${savedUrl}/api`
+    }
+    return 'http://192.168.0.101:8080/api'
+}
+
+const baseURL = getBaseURL()
+
 const service: AxiosInstance = axios.create({
-    baseURL: '/api',
+    baseURL,
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json'
@@ -14,6 +29,9 @@ const service: AxiosInstance = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
+        // [调试] 打印请求的完整 URL，方便在手机控制台查看（如果是真机调试）
+        console.log(`[发送请求] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
+
         // 从 localStorage 获取 token
         const token = localStorage.getItem('token')
         if (token) {
@@ -51,21 +69,36 @@ service.interceptors.response.use(
         return res
     },
     (error) => {
-        console.error('响应错误:', error)
+        // [调试] 手机上详细报错打印
+        console.error('[响应错误详情]:', {
+            message: error.message,
+            code: error.code,
+            status: error.response?.status,
+            data: error.response?.data,
+            url: error.config?.url,
+            fullURL: error.config?.baseURL + error.config?.url
+        })
 
         if (error.response) {
             const status = error.response.status
 
+            if (status === 401 || status === 403) {
+                const hadToken = localStorage.getItem('token')
+
+                // 清除本地过期或无效信息
+                localStorage.removeItem('token')
+                localStorage.removeItem('userInfo')
+
+                // 仅当之前处于登录状态（有 token）时才弹出友好提示
+                // 游客浏览触发的 401 不弹出警告
+                if (hadToken) {
+                    ElMessage.warning('您的登录已过期，请重新登录')
+                }
+
+                return Promise.reject(new Error('未登录或权限不足'))
+            }
+
             switch (status) {
-                case 401:
-                    ElMessage.error('登录已过期，请重新登录')
-                    localStorage.removeItem('token')
-                    localStorage.removeItem('userInfo')
-                    router.push('/login')
-                    break
-                case 403:
-                    ElMessage.error('没有权限访问')
-                    break
                 case 404:
                     ElMessage.error('请求的资源不存在')
                     break
@@ -112,6 +145,30 @@ export const request = {
                 'Content-Type': 'multipart/form-data'
             }
         })
+    },
+
+    // 解析图片 / 资源 URL
+    resolveUrl(url: string | undefined | null): string {
+        if (!url) return ''
+        if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) {
+            return url
+        }
+
+        // 处理基础路径
+        // 如果 url 以 /api 开始且 baseURL 也是以 /api 结尾的绝对路径，需要处理重叠
+        const base = getBaseURL()
+
+        if (base.startsWith('http')) {
+            // 如果 base 是 http://.../api
+            // 如果 url 是 /api/files/xxx
+            if (url.startsWith('/api')) {
+                return base.replace(/\/api$/, '') + url
+            }
+            return base.endsWith('/') ? base + url.replace(/^\//, '') : base + '/' + url.replace(/^\//, '')
+        }
+
+        // Web 开发环境 (base = '/api')
+        return url.startsWith('/') ? url : '/' + url
     }
 }
 

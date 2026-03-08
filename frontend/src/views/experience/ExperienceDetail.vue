@@ -2,26 +2,52 @@
   <div class="experience-detail-page">
     <!-- 返回按钮 -->
     <div class="back-bar">
-      <el-button type="primary" text @click="$router.push('/experience')">
-        <el-icon><ArrowLeft /></el-icon>
+      <button class="pill-back-btn" @click="$router.push('/experience')">
         返回心得广场
-      </el-button>
+        <el-icon><ArrowRight /></el-icon>
+      </button>
     </div>
 
-    <div class="detail-content" v-loading="loading">
+    <!-- 骨架屏 -->
+    <div v-if="loading" class="detail-skeleton">
+      <el-skeleton animated>
+        <template #template>
+          <el-skeleton-item variant="image" style="height: 240px; border-radius: 12px" />
+          <div style="padding: 20px">
+            <el-skeleton-item variant="h1" style="width: 60%; height: 28px" />
+            <div style="display:flex;gap:12px;margin-top:16px;align-items:center">
+              <el-skeleton-item variant="circle" style="width:40px;height:40px" />
+              <el-skeleton-item variant="text" style="width:120px" />
+            </div>
+            <el-skeleton-item variant="text" style="margin-top:20px" />
+            <el-skeleton-item variant="text" style="margin-top:8px" />
+            <el-skeleton-item variant="text" style="width: 80%; margin-top:8px" />
+            <el-skeleton-item variant="text" style="margin-top:8px" />
+            <el-skeleton-item variant="text" style="width: 60%; margin-top:8px" />
+          </div>
+        </template>
+      </el-skeleton>
+    </div>
+
+    <div v-else class="detail-content">
       <el-row :gutter="24">
         <el-col :xs="24" :lg="16">
           <el-card class="main-card" shadow="never">
             <!-- 封面图 -->
-            <div class="cover-section" v-if="experience.coverImage">
-              <el-image :src="experience.coverImage" fit="cover" />
+            <div class="cover-section section-anim stagger-1" v-if="experience.coverImage">
+              <el-image :src="experience.coverImage" fit="cover">
+  <template #error>
+    <img :src="'/default-cover.jpg'" style="width:100%;height:100%;object-fit:cover"/>
+  </template>
+</el-image>
+              <div class="cover-gradient"></div>
             </div>
 
             <!-- 标题 -->
-            <h1 class="exp-title">{{ experience.title }}</h1>
+            <h1 class="exp-title section-anim stagger-2">{{ experience.title }}</h1>
 
             <!-- 元信息 -->
-            <div class="exp-meta">
+            <div class="exp-meta section-anim stagger-3">
               <div class="author-info">
                 <el-avatar :size="40" :src="getAvatarUrl(experience.authorAvatar)">
                   {{ experience.authorName?.charAt(0) || '匿' }}
@@ -44,7 +70,7 @@
             </div>
 
             <!-- 关联活动 -->
-            <div class="activity-tag" v-if="experience.activityTitle">
+            <div class="activity-tag section-anim stagger-3" v-if="experience.activityTitle">
               <el-tag type="info">
                 <el-icon><Flag /></el-icon>
                 {{ experience.activityTitle }}
@@ -54,40 +80,42 @@
             <el-divider />
 
             <!-- 正文内容 -->
-            <div class="exp-content" v-html="experience.content || defaultContent"></div>
+            <div class="exp-content section-anim stagger-4" v-html="experience.content || defaultContent"></div>
 
             <el-divider />
 
             <!-- 底部操作 -->
-            <div class="exp-actions">
-              <el-button
-                :type="hasLiked ? 'danger' : 'default'"
-                size="large"
-                :loading="liking"
+            <div class="exp-actions section-anim stagger-5">
+              <button
+                class="action-btn like-btn"
+                :class="{ liked: hasLiked }"
+                :disabled="liking"
                 @click="handleLike"
               >
                 <el-icon><Star /></el-icon>
                 {{ hasLiked ? '已点赞' : '点赞' }} ({{ experience.likeCount || 0 }})
-              </el-button>
-              <el-button size="large" @click="handleShare">
+              </button>
+              <button class="action-btn share-btn" @click="handleShare">
                 <el-icon><Share /></el-icon>
                 分享
-              </el-button>
+              </button>
             </div>
 
             <!-- 评论区 -->
-            <comment-section
-              target-type="EXPERIENCE"
-              :target-id="expId"
-              :count="experience.commentCount || 0"
-              @refresh="fetchExperience"
-            />
+            <div class="section-anim stagger-6">
+              <comment-section
+                target-type="EXPERIENCE"
+                :target-id="expId"
+                :count="experience.commentCount || 0"
+                @refresh="fetchExperience"
+              />
+            </div>
           </el-card>
         </el-col>
 
         <!-- 右侧：更多心得 -->
         <el-col :xs="24" :lg="8">
-          <el-card class="related-card" shadow="never">
+          <el-card class="related-card section-anim stagger-5" shadow="never">
             <template #header>
               <span>📝 更多精彩心得</span>
             </template>
@@ -98,10 +126,19 @@
                 class="related-item"
                 @click="goToDetail(item.id)"
               >
-                <h4>{{ item.title }}</h4>
-                <div class="related-meta">
-                  <span>{{ item.authorName || '匿名' }}</span>
-                  <span>{{ item.likeCount || 0 }} 赞</span>
+                <div class="related-thumb" v-if="item.coverImage">
+                  <el-image :src="item.coverImage" fit="cover" style="width:48px;height:48px;border-radius:8px">
+  <template #error>
+    <img :src="'/default-cover.jpg'" style="width:100%;height:100%;object-fit:cover"/>
+  </template>
+</el-image>
+                </div>
+                <div class="related-text">
+                  <h4>{{ item.title }}</h4>
+                  <div class="related-meta">
+                    <span>{{ item.authorName || '匿名' }}</span>
+                    <span><el-icon><Star /></el-icon> {{ item.likeCount || 0 }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -116,7 +153,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, View, Star, Flag, Share } from '@element-plus/icons-vue'
+import { ArrowRight, View, Star, Flag, Share } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
 import CommentSection from '@/components/CommentSection.vue'
 
@@ -148,8 +185,18 @@ const relatedList = ref<Experience[]>([])
 const defaultContent = `
 <p>这次志愿服务活动让我收获颇丰。</p>
 <p>通过参与，我不仅帮助了他人，也让自己得到了成长。看到服务对象脸上的笑容，我深刻体会到志愿服务的意义所在。</p>
-<p>未来我会继续投身志愿服务，用自己的行动传递温暖和正能量。</p>
+<p>未来我会继续投身志愿服务，用自己的行动传递温暖 and 正能量。</p>
 `
+
+// 解析图片JSON
+const getCover = (imagesJson: string) => {
+  try {
+    const imgs = JSON.parse(imagesJson || '[]')
+    return imgs.length > 0 ? imgs[0] : null
+  } catch (e) {
+    return null
+  }
+}
 
 const getAvatarUrl = (url?: string) => {
   if (!url) return ''
@@ -170,7 +217,12 @@ const fetchExperience = async () => {
   try {
     const res = await request.get(`/experience/${expId}`)
     if (res.code === 200 && res.data) {
-      experience.value = res.data
+      const d = res.data
+      // 映射封面
+      if (!d.coverImage && d.images) {
+        d.coverImage = getCover(d.images)
+      }
+      experience.value = d
     }
   } catch (error) {
     console.error('获取心得详情失败:', error)
@@ -260,6 +312,22 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+// ================================================================
+// Section stagger animations
+// ================================================================
+@keyframes sectionFadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-anim { animation: sectionFadeUp 0.4s ease-out both; }
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.12s; }
+.stagger-3 { animation-delay: 0.18s; }
+.stagger-4 { animation-delay: 0.25s; }
+.stagger-5 { animation-delay: 0.35s; }
+.stagger-6 { animation-delay: 0.45s; }
+
 .experience-detail-page {
   padding: 20px;
   background: #f5f7fa;
@@ -267,7 +335,49 @@ onMounted(() => {
 }
 
 .back-bar {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  display: flex;
+}
+
+.pill-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  border: 1.5px solid #00BFA6;
+  background: #fff;
+  color: #00BFA6;
+  border-radius: 50px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 191, 166, 0.08);
+
+  .el-icon {
+    font-size: 16px;
+    transition: transform 0.3s;
+  }
+
+  &:hover {
+    background: rgba(0, 191, 166, 0.04);
+    box-shadow: 0 4px 12px rgba(0, 191, 166, 0.15);
+    
+    .el-icon {
+      transform: translateX(3px);
+    }
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.detail-skeleton {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 900px;
 }
 
 .main-card {
@@ -278,10 +388,18 @@ onMounted(() => {
   margin: -20px -20px 20px;
   height: 300px;
   overflow: hidden;
+  position: relative;
 
   :deep(.el-image) {
     width: 100%;
     height: 100%;
+  }
+
+  .cover-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, rgba(0, 191, 166, 0.3) 100%);
+    pointer-events: none;
   }
 }
 
@@ -366,6 +484,43 @@ onMounted(() => {
   justify-content: center;
 }
 
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+
+  .el-icon { font-size: 16px; }
+
+  &:active { transform: scale(0.95); }
+}
+
+.like-btn {
+  background: #f0f0f0;
+  color: #666;
+
+  &.liked {
+    background: linear-gradient(135deg, #00BFA6, #43e97b);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0, 191, 166, 0.3);
+  }
+
+  &:hover:not(.liked) { background: #e0e0e0; }
+}
+
+.share-btn {
+  background: #f0f0f0;
+  color: #666;
+
+  &:hover { background: #e0e0e0; }
+}
+
 .related-card {
   border-radius: 12px;
   position: sticky;
@@ -373,33 +528,46 @@ onMounted(() => {
 
   .related-list {
     .related-item {
-      padding: 12px 0;
-      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
       cursor: pointer;
       transition: all 0.2s;
 
-      &:last-child {
-        border-bottom: none;
+      &:last-child { border-bottom: none; }
+      &:hover { color: var(--primary-color, #00BFA6); }
+
+      .related-thumb {
+        flex-shrink: 0;
       }
 
-      &:hover {
-        color: #409eff;
-      }
+      .related-text {
+        flex: 1;
+        min-width: 0;
 
-      h4 {
-        margin: 0 0 6px;
-        font-size: 14px;
-        font-weight: 500;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
+        h4 {
+          margin: 0 0 4px;
+          font-size: 14px;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
-      .related-meta {
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-        color: #999;
+        .related-meta {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          color: #999;
+
+          span {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+          }
+        }
       }
     }
   }
@@ -413,6 +581,17 @@ html.dark .experience-detail-page {
   .related-card {
     background-color: #1e293b !important;
     border-color: #334155 !important;
+  }
+
+  .pill-back-btn {
+    background-color: transparent !important;
+    border-color: #00BFA6 !important;
+    color: #00BFA6 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+
+    &:hover {
+      background-color: rgba(0, 191, 166, 0.1) !important;
+    }
   }
   
   .exp-title {

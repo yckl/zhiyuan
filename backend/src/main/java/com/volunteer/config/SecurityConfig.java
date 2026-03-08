@@ -85,7 +85,7 @@ public class SecurityConfig {
                                                 // 放行公开接口（首页统计、分类列表、活动列表、公告列表）
                                                 .requestMatchers("/statistics/index", "/category/list",
                                                                 "/activity/list", "/activity/{id}",
-                                                                "/notice/list", "/notice/{id}")
+                                                                "/notice/list", "/notice/{id}", "/banner/list")
                                                 .permitAll()
                                                 // 放行心得公开接口
                                                 .requestMatchers("/experience/public/list", "/experience/{id}",
@@ -93,6 +93,10 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 // 放行课程公开接口
                                                 .requestMatchers("/course/list", "/course/{id}")
+                                                .permitAll()
+                                                // 放行商城公开接口
+                                                .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                                                "/mall/goods/**")
                                                 .permitAll()
                                                 // 放行状态检查接口（内部会处理未登录情况）
                                                 .requestMatchers("/collection/check", "/registration/check/**",
@@ -113,8 +117,7 @@ public class SecurityConfig {
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
                 // 允许的源 - 使用模式匹配支持所有端口和IP
-                configuration.setAllowedOriginPatterns(Arrays.asList("*", "http://localhost:*", "http://127.0.0.1:*",
-                                "http://192.168.*.*:*", "http://10.*.*.*:*"));
+                configuration.setAllowedOriginPatterns(Arrays.asList("*"));
                 // 允许的方法
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 // 允许的头
@@ -138,8 +141,7 @@ public class SecurityConfig {
         public org.springframework.web.filter.CorsFilter corsFilter() {
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOriginPatterns(Arrays.asList("*", "http://localhost:*", "http://127.0.0.1:*",
-                                "http://192.168.*.*:*", "http://10.*.*.*:*"));
+                configuration.setAllowedOriginPatterns(Arrays.asList("*"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(List.of("*"));
                 configuration.setAllowCredentials(true);

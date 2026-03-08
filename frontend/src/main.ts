@@ -25,4 +25,14 @@ app.use(ElementPlus, {
     locale: zhCn,
 })
 
+// 全局图片加载错误处理
+window.addEventListener('error', (event) => {
+    const target = event.target
+    if (target instanceof HTMLImageElement && !target.dataset.errorHandled) {
+        target.dataset.errorHandled = 'true'
+        // 使用 Data URI 以避免网络请求失败
+        target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg width="400" height="300" xmlns="http://www.w3.org/2000/svg"%3E%3Crect width="100%25" height="100%25" fill="%23ccc"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" fill="%23666"%3EImage Load Error%3C/text%3E%3C/svg%3E'
+    }
+}, true)
+
 app.mount('#app')

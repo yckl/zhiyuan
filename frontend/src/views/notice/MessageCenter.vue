@@ -1,107 +1,112 @@
 <template>
-  <div class="message-center">
-    <!-- Header Area -->
-    <div class="page-header">
-      <div class="header-left">
-        <h2>消息中心</h2>
-        <span class="unread-badge" v-if="unreadCount > 0">{{ unreadCount }}条未读</span>
+  <div class="msg-center" :class="{ 'is-mobile': isMobile }">
+
+    <!-- ==================== 极光流体顶部 ==================== -->
+    <div class="msg-topbar-aurora">
+      <div class="topbar-content">
+        <h1 class="msg-page-title">消息中心</h1>
+        <div class="topbar-right">
+          <div v-if="unreadCount > 0" class="unread-pill">
+            <span class="unread-num">{{ unreadCount }}</span>
+            <span class="unread-label">未读</span>
+          </div>
+          <el-button
+            type="primary" class="read-all-btn"
+            :loading="readAllLoading"
+            :disabled="unreadCount === 0"
+            @click="handleReadAll"
+          >全部已读</el-button>
+        </div>
       </div>
-      <el-button 
-        type="primary" 
-        plain 
-        size="small" 
-        @click="handleReadAll" 
-        :loading="readAllLoading"
-        :disabled="unreadCount === 0"
-      >
-        <el-icon class="el-icon--left"><Check /></el-icon>
-        一键已读
-      </el-button>
     </div>
 
-    <!-- Tabs Layout -->
-    <el-tabs v-model="activeTab" class="message-tabs" @tab-change="handleTabChange">
-      <el-tab-pane label="全部消息" name="ALL" />
-      <el-tab-pane label="活动动态" name="ACTIVITY" />
-      <el-tab-pane label="商城与系统" name="MALL_SYSTEM" />
-    </el-tabs>
+    <!-- ==================== Tab 筛选 ==================== -->
+    <div class="msg-tabs hide-scrollbar">
+      <span
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="tab-pill"
+        :class="{ active: activeTab === tab.key }"
+        @click="switchTab(tab.key)"
+      >
+        {{ tab.label }}
+        <el-badge
+          v-if="tab.key === 'ALL' && unreadCount > 0"
+          :value="unreadCount"
+          :max="99"
+          class="tab-badge"
+        />
+      </span>
+    </div>
 
-    <!-- Message List (Card Layout) -->
-    <div class="message-list" v-loading="loading">
-      <transition-group name="list">
-        <el-card 
-          v-for="msg in messageList" 
-          :key="msg.id" 
-          class="message-card"
-          :class="{ 'is-unread': msg.isRead === 0 }"
-          shadow="hover"
+    <!-- ==================== 消息列表 ==================== -->
+    <div class="msg-list" v-loading="loading">
+      <TransitionGroup name="msg-fade">
+        <div
+          v-for="msg in messageList"
+          :key="msg.id"
+          class="msg-row"
+          :class="{ unread: msg.isRead === 0 }"
           @click="handleRead(msg)"
         >
-          <div class="card-content">
-            <!-- Icon Column -->
-            <div class="icon-wrapper" :class="getTypeClass(msg.type)">
-              <el-icon :size="24">
-                <component :is="getTypeIcon(msg.type)" />
-              </el-icon>
+          <!-- 左侧头像 -->
+          <div class="msg-avatar-area">
+            <div class="msg-avatar" :class="getTypeClass(msg.type)">
+              <el-icon :size="20"><component :is="getTypeIcon(msg.type)" /></el-icon>
             </div>
-
-            <!-- Main Content -->
-            <div class="text-content">
-              <div class="msg-header">
-                <span class="msg-title">{{ msg.title }}</span>
-                <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
-              </div>
-              <div class="msg-body">{{ formatContent(msg.content) }}</div>
-              
-              <!-- Action Buttons (Conditional) -->
-              <div class="msg-actions" v-if="hasAction(msg)">
-                <el-button 
-                  v-if="msg.content.includes('兑换成功')" 
-                  type="primary" 
-                  link 
-                  size="small"
-                  @click.stop="router.push('/mall/backpack')"
-                >
-                  查看领取地址 <el-icon><ArrowRight /></el-icon>
-                </el-button>
-                <el-button 
-                  v-if="msg.content.includes('催签到') || msg.title.includes('签到')" 
-                  type="success" 
-                  link 
-                  size="small"
-                  @click.stop="router.push('/my-activities')"
-                >
-                  前往签到 <el-icon><ArrowRight /></el-icon>
-                </el-button>
-              </div>
-            </div>
-
-            <!-- Unread Dot -->
-            <div class="unread-dot" v-if="msg.isRead === 0"></div>
+            <el-badge v-if="msg.isRead === 0" :value="1" class="avatar-badge" />
           </div>
-        </el-card>
-      </transition-group>
 
-      <!-- Empty State -->
-      <el-empty 
-        v-if="!loading && messageList.length === 0" 
-        :description="getEmptyText()" 
-        :image-size="120"
-      />
-      
-      <!-- Load More / Pagination -->
-      <div class="load-more" v-if="hasMore">
+          <!-- 中间内容 -->
+          <div class="msg-content">
+            <div class="msg-title-line">
+              <span class="msg-title">{{ msg.title }}</span>
+            </div>
+            <p class="msg-summary">{{ formatContent(msg.content) }}</p>
+
+            <!-- 快捷操作 -->
+            <div class="msg-quick-action" v-if="hasAction(msg)" @click.stop>
+              <el-button
+                v-if="msg.content.includes('兑换成功')"
+                type="primary" link size="small"
+                @click="router.push('/mall/backpack')"
+              >查看背包 </el-button>
+              <el-button
+                v-if="msg.content.includes('催签') || msg.title.includes('签到')"
+                type="success" link size="small"
+                @click="router.push('/my-activities')"
+              >前往签到 </el-button>
+              <el-button
+                v-if="msg.type === 'INTERACTION'"
+                type="primary" link size="small"
+                @click="router.push('/my-experiences')"
+              >查看心得 </el-button>
+            </div>
+          </div>
+
+          <!-- 右侧时间 -->
+          <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
+        </div>
+      </TransitionGroup>
+
+      <!-- 空状态 -->
+      <el-empty v-if="!loading && messageList.length === 0" :description="getEmptyText()" :image-size="80" />
+
+      <!-- 加载更多 -->
+      <div v-if="hasMore" class="load-more-area">
         <el-button link @click="loadMore" :loading="loading">加载更多</el-button>
       </div>
+      <div v-else-if="messageList.length > 0" class="list-end">~没有更多消息啦~</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Check, Flag, Present, ArrowRight, Service } from '@element-plus/icons-vue'
+import { Bell, Flag, Present, ChatDotRound, Service } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 import { request } from '@/utils/request'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -111,332 +116,403 @@ dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
 const router = useRouter()
+const userStore = useUserStore()
 
-// Data
-const activeTab = ref('ALL')
-const messageList = ref<any[]>([])
+// ================== 响应式 ==================
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value < 768)
+onMounted(() => window.addEventListener('resize', () => { windowWidth.value = window.innerWidth }))
+
+// ================== 状态 ==================
 const loading = ref(false)
 const readAllLoading = ref(false)
-const unreadCount = ref(0)
+const activeTab = ref('ALL')
+const messageList = ref<any[]>([])
 const pageNum = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 
-// Helper: Icons & Colors
+const unreadCount = computed({
+  get: () => userStore.unreadCount,
+  set: (val) => { userStore.unreadCount = val }
+})
+
+const hasMore = computed(() => messageList.value.length < total.value)
+
+const tabs = [
+  { key: 'ALL', label: '全部' },
+  { key: 'ACTIVITY', label: '活动' },
+  { key: 'INTERACTION', label: '互动' },
+  { key: 'MALL_SYSTEM', label: '系统' },
+]
+
+// ================== 图标/样式映射 ==================
 const getTypeClass = (type: string) => {
-  if (type === 'MALL') return 'icon-mall' // Orange
-  if (type === 'ACTIVITY') return 'icon-activity' // Blue
-  return 'icon-system' // Gray
+  if (type === 'MALL') return 'type-mall'
+  if (type === 'ACTIVITY') return 'type-activity'
+  if (type === 'INTERACTION') return 'type-interaction'
+  return 'type-system'
 }
 
 const getTypeIcon = (type: string) => {
   if (type === 'MALL') return Present
   if (type === 'ACTIVITY') return Flag
-  return Service // Or Bell
+  if (type === 'INTERACTION') return ChatDotRound
+  return Bell
 }
 
-// Helper: Time
+// ================== 工具函数 ==================
 const formatTime = (time: string) => {
-  return dayjs(time).fromNow()
-}
-
-// Helper: Strip HTML and truncate for list view
-const stripHtml = (html: string, maxLength: number = 80) => {
-  if (!html) return ''
-  // Create temp element to extract text
-  const tmp = document.createElement('DIV')
-  tmp.innerHTML = html
-  let text = tmp.textContent || tmp.innerText || ''
-  text = text.trim().replace(/\s+/g, ' ') // Normalize whitespace
-  if (text.length > maxLength) {
-    return text.substring(0, maxLength) + '...'
-  }
-  return text
+  const d = dayjs(time)
+  const now = dayjs()
+  if (now.diff(d, 'day') === 0) return d.format('HH:mm')
+  if (now.diff(d, 'day') === 1) return '昨天'
+  if (now.diff(d, 'day') < 7) return d.format('ddd')
+  return d.format('MM/DD')
 }
 
 const formatContent = (content: string) => {
-  return stripHtml(content, 100)
+  if (!content) return ''
+  const tmp = document.createElement('DIV')
+  tmp.innerHTML = content
+  let text = (tmp.textContent || tmp.innerText || '').trim().replace(/\s+/g, ' ')
+  return text.length > 60 ? text.substring(0, 60) + '...' : text
 }
 
-// Helper: Check Actions
 const hasAction = (msg: any) => {
-  return msg.content.includes('兑换成功') || msg.content.includes('催签到') || msg.title.includes('签到')
+  return msg.content?.includes('兑换成功') || msg.content?.includes('催签') ||
+         msg.title?.includes('签到') || msg.type === 'INTERACTION'
 }
 
-// Empty Text
 const getEmptyText = () => {
   const map: Record<string, string> = {
-    'ALL': '暂无消息',
-    'ACTIVITY': '暂无活动动态',
-    'MALL_SYSTEM': '暂无系统通知'
+    ALL: '暂无消息', ACTIVITY: '暂无活动动态',
+    INTERACTION: '暂无互动消息', MALL_SYSTEM: '暂无系统通知'
   }
-  return map[activeTab.value]
+  return map[activeTab.value] || '暂无消息'
 }
 
-const hasMore = computed(() => {
-  return messageList.value.length < total.value
-})
-
-// Fetch Data
-const fetchMessages = async (isLoadMore = false) => {
+// ================== API ==================
+const fetchMessages = async (append = false) => {
   loading.value = true
   try {
-    const params: any = {
-      pageNum: pageNum.value,
-      pageSize: pageSize.value
-    }
-    
-    // Convert Tab to API Type
-    if (activeTab.value === 'ACTIVITY') {
-      params.type = 'ACTIVITY'
-    } else if (activeTab.value === 'MALL_SYSTEM') {
-      params.type = 'SYSTEM,MALL,NOTICE,URGENT' // Pass multiple types
-    }
+    const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
+    if (activeTab.value === 'ACTIVITY') params.type = 'ACTIVITY'
+    else if (activeTab.value === 'INTERACTION') params.type = 'INTERACTION'
+    else if (activeTab.value === 'MALL_SYSTEM') params.type = 'SYSTEM,MALL,NOTICE,URGENT'
 
     const res = await request.get('/message/list', params)
-    const newData = res.data.records || []
-
-    if (isLoadMore) {
-      messageList.value = [...messageList.value, ...newData]
-    } else {
-      messageList.value = newData
-    }
-    
-    total.value = res.data.total
-    
-    // Also fetch unread count
-    fetchUnreadCount()
-  } catch (error) {
-    console.error(error)
-  } finally {
-    loading.value = false
-  }
+    const records = res.data?.records || []
+    messageList.value = append ? [...messageList.value, ...records] : records
+    total.value = res.data?.total || 0
+    userStore.fetchUnreadCount()
+  } catch (e) { console.error('获取消息失败:', e) }
+  finally { loading.value = false }
 }
 
-const fetchUnreadCount = async () => {
-  try {
-    const res = await request.get('/message/unreadCount')
-    unreadCount.value = res.data
-  } catch (e) {}
-}
-
-const loadMore = () => {
-  pageNum.value++
-  fetchMessages(true)
-}
-
-const handleTabChange = () => {
+const switchTab = (key: string) => {
+  activeTab.value = key
   pageNum.value = 1
   fetchMessages()
 }
 
-// Actions
+const loadMore = () => { pageNum.value++; fetchMessages(true) }
+
 const handleRead = async (msg: any) => {
   if (msg.isRead === 1) return
-  
-  // Optimistic update
   msg.isRead = 1
   unreadCount.value = Math.max(0, unreadCount.value - 1)
-  
-  try {
-    await request.post(`/message/read/${msg.id}`)
-  } catch (e) {
-    msg.isRead = 0 // Revert
-    unreadCount.value++
-  }
+  try { await request.post(`/message/read/${msg.id}`) }
+  catch (e) { msg.isRead = 0; unreadCount.value++ }
 }
 
 const handleReadAll = async () => {
-    readAllLoading.value = true
-    try {
-        await request.post('/message/readAll')
-        messageList.value.forEach(m => m.isRead = 1)
-        unreadCount.value = 0
-        ElMessage.success('已全部标记为已读')
-    } catch (e) {
-        ElMessage.error('操作失败')
-    } finally {
-        readAllLoading.value = false
-    }
+  readAllLoading.value = true
+  try {
+    await request.post('/message/readAll')
+    messageList.value.forEach(m => m.isRead = 1)
+    unreadCount.value = 0
+    ElMessage.success('已全部标记为已读')
+  } catch (e) { ElMessage.error('操作失败') }
+  finally { readAllLoading.value = false }
 }
 
-onMounted(() => {
-  fetchMessages()
-})
+onMounted(fetchMessages)
 </script>
 
 <style lang="scss" scoped>
-.message-center {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 0 20px;
+.msg-center {
+  min-height: 100vh;
+  background: var(--app-bg);
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  
-  .header-left {
+// ================================================================
+// 顶部
+// ================================================================
+.msg-center {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+// ================================================================
+// 极光顶部
+// ================================================================
+.msg-topbar-aurora {
+  background: linear-gradient(135deg, #00C9A7 0%, #05D5B3 100%);
+  padding: 32px 16px 20px;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -20%; left: -10%; width: 50%; height: 100%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 70%);
+    transform: skewX(-20deg);
+    pointer-events: none;
+  }
+
+  .topbar-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+
+  .msg-page-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    margin: 0;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .topbar-right {
     display: flex;
     align-items: center;
     gap: 12px;
-    
-    h2 {
-      margin: 0;
-      font-size: 24px;
-      color: var(--el-text-color-primary);
+
+    .unread-pill {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      padding: 4px 12px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+
+      .unread-num { color: #fff; font-weight: 800; font-size: 14px; }
+      .unread-label { color: rgba(255,255,255,0.8); font-size: 11px; }
     }
-    
-    .unread-badge {
-      background: #f56c6c;
-      color: #fff;
-      font-size: 12px;
-      padding: 2px 8px;
-      border-radius: 10px;
+
+    .read-all-btn {
+      background: #fff;
+      color: #00C9A7;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      height: auto;
+      
+      &:hover { background: rgba(255,255,255,0.9); transform: scale(1.05); }
+      &:disabled { background: rgba(255,255,255,0.5); color: rgba(255,255,255,0.8); }
     }
   }
 }
 
-.message-tabs {
-  margin-bottom: 20px;
-  
-  :deep(.el-tabs__header) {
-    margin-bottom: 20px;
-  }
-}
-
-.message-list {
+// ================================================================
+// Tab 筛选
+// ================================================================
+.msg-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+  padding: 16px;
+  background: #f5f7fa;
+  overflow-x: auto;
 }
 
-.message-card {
-  transition: all 0.2s;
+.tab-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  background: #fff;
+  color: #64748b;
   cursor: pointer;
-  border: none;
-  background-color: var(--el-bg-color);
-  
-  &.is-unread {
-    border-left: 4px solid #67c23a; // Green vertical border
-    
-    .msg-title {
-      font-weight: bold;
+  white-space: nowrap;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  border: 1px solid transparent;
+
+  &.active {
+    background: #00C9A7;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0, 201, 167, 0.2);
+  }
+
+  .tab-badge {
+    margin-left: 4px;
+    :deep(.el-badge__content) {
+      background: #f43f5e;
+      border: none;
+      box-shadow: 0 2px 4px rgba(244, 63, 94, 0.3);
     }
   }
 }
 
-.card-content {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  position: relative;
+// ================================================================
+// 消息列表
+// ================================================================
+.msg-list {
+  padding: 4px 0;
 }
 
-.icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.msg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.03);
+
+  &:active { background: #F9F9F9; }
+
+  &.unread {
+    .msg-title { font-weight: 700; color: #1C1C1E; }
+    .msg-summary { color: #333; }
+  }
+}
+
+// --- 头像 ---
+.msg-avatar-area {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.msg-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  
-  &.icon-mall {
-    background: #fdf5e6;
-    color: #e6a23c;
-  }
-  
-  &.icon-activity {
-    background: #ecf5ff;
-    color: #409eff;
-  }
-  
-  &.icon-system {
-    background: #f4f4f5;
-    color: #909399;
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+
+  &.type-activity { background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); }
+  &.type-mall { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
+  &.type-interaction { background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%); }
+  &.type-system { background: linear-gradient(135deg, #00C9A7 0%, #05D5B3 100%); }
+}
+
+.avatar-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  :deep(.el-badge__content) {
+    border: 2px solid #fff;
+    box-shadow: 0 2px 6px rgba(245, 108, 108, 0.3);
   }
 }
 
-.text-content {
+// --- 内容 ---
+.msg-content {
   flex: 1;
   min-width: 0;
 }
 
-.msg-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  
-  .msg-title {
-    font-size: 16px;
-    color: var(--el-text-color-primary);
-  }
-  
-  .msg-time {
-    font-size: 12px;
-    color: var(--el-text-color-secondary);
-  }
+.msg-title-line {
+  margin-bottom: 4px;
 }
 
-.msg-body {
-  font-size: 14px;
-  color: var(--el-text-color-regular);
-  line-height: 1.6;
-  margin-bottom: 8px;
-  
-  :deep(b) {
-    color: var(--el-color-primary);
-    font-weight: 600;
-  }
+.msg-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
 }
 
-.msg-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
+.msg-summary {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.4;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.unread-dot {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #f56c6c;
+.msg-quick-action {
+  margin-top: 6px;
 }
 
-.load-more {
+// --- 时间 ---
+.msg-time {
+  font-size: 11px;
+  color: #C7C7CC;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+// --- 底部 ---
+.load-more-area {
   text-align: center;
-  margin-top: 20px;
+  padding: 16px;
 }
 
-/* Dark Mode Adaptation */
-html.dark {
-  .message-card {
-    background-color: var(--el-bg-color-overlay);
-    
-    &.is-unread {
-      background-color: #252526;
-    }
+.list-end {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: #ddd;
+}
+
+// --- 过渡动画 ---
+.msg-fade-enter-active { transition: all 0.3s ease; }
+.msg-fade-leave-active { transition: all 0.2s ease; }
+.msg-fade-enter-from { opacity: 0; transform: translateX(-20px); }
+.msg-fade-leave-to { opacity: 0; transform: translateX(20px); }
+
+// ================================================================
+// PC 适配
+// ================================================================
+@media (min-width: 769px) {
+  .msg-center {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0;
+    background: #f5f7fa;
   }
-  
-  .icon-wrapper {
-    &.icon-mall {
-      background: rgba(230, 162, 60, 0.15);
-    }
-    
-    &.icon-activity {
-      background: rgba(64, 158, 255, 0.15);
-    }
-    
-    &.icon-system {
-      background: rgba(144, 147, 153, 0.15);
-    }
+
+  .msg-topbar-aurora {
+    border-radius: 0;
+    padding: 40px 24px 24px;
+  }
+
+  .msg-tabs {
+    border-radius: 0;
+  }
+
+  .msg-list {
+    background: #fff;
+    border-radius: 0 0 12px 12px;
+    overflow: hidden;
+  }
+
+  .msg-row {
+    &:hover { background: #FAFAFA; }
   }
 }
 </style>

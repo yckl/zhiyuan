@@ -1,88 +1,84 @@
 <template>
   <div class="my-experiences">
-    <el-page-header @back="router.back()" title="返回" content="我的心得" />
-
-    <div class="header-actions">
-      <el-button type="primary" @click="router.push('/experience/create')">
-        <el-icon><Plus /></el-icon> 发布心得
-      </el-button>
+    <!-- 统一头部 -->
+    <div class="list-header">
+      <h2>我的心得</h2>
+      <el-button type="primary" icon="Plus" circle class="floating-add-btn" @click="router.push('/experience/create')" />
     </div>
 
-    <el-table :data="experiences" v-loading="loading" stripe>
-      <el-table-column prop="title" label="标题" min-width="200" />
-      <el-table-column prop="activityTitle" label="关联活动" width="180" />
-      <el-table-column prop="viewCount" label="浏览" width="80" />
-      <el-table-column prop="likeCount" label="点赞" width="80" />
-      <el-table-column prop="statusName" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.statusName }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="createTime" label="发布时间" width="180" />
-      <el-table-column label="操作" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button type="primary" link @click="router.push(`/experience/${row.id}`)">查看</el-button>
-          <el-button type="danger" link @click="handleDelete(row.id)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div v-loading="loading" class="article-list-container">
+      <div 
+        v-for="item in experiences" 
+        :key="item.id" 
+        class="article-card anim-section"
+        @click="router.push(`/experience/${item.id}`)"
+      >
+        <div class="card-main">
+          <h3 class="article-title">{{ item.title }}</h3>
+          <p class="article-excerpt">{{ item.content.substring(0, 100) }}...</p>
+          
+          <div class="article-meta">
+            <span class="meta-tag" v-if="item.status === 1">已发</span>
+            <span class="meta-tag draft" v-else-if="item.status === 0">待审</span>
+            <span class="meta-tag rejected" v-else>已拒</span>
+            
+            <span class="meta-item"><el-icon><View /></el-icon> {{ item.viewCount }}</span>
+            <span class="meta-item"><el-icon><Star /></el-icon> {{ item.likeCount }}</span>
+            <span class="meta-date">{{ item.createTime?.substring(0, 10) }}</span>
+          </div>
+        </div>
 
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="queryParams.page"
-      v-model:page-size="queryParams.size"
-      :total="total"
-      layout="total, prev, pager, next"
-      class="pagination"
-      @current-change="fetchExperiences"
-    />
+        <div class="exp-cover" v-if="getCover(item.images)">
+          <img :src="getCover(item.images)" alt="cover" @error="(e) => ((e.target as HTMLImageElement).src = '/default-cover.jpg')" />
+        </div>
 
-    <!-- 发布心得对话框 -->
-    <el-dialog v-model="showCreateDialog" title="发布心得" width="600px">
-      <el-form :model="createForm" label-width="80px">
-        <el-form-item label="标题" required>
-          <el-input v-model="createForm.title" placeholder="请输入心得标题" />
-        </el-form-item>
-        <el-form-item label="关联活动">
-          <el-select v-model="createForm.activityId" placeholder="选择关联活动" clearable style="width: 100%">
-            <el-option v-for="act in myActivities" :key="act.activityId" :label="act.activityTitle" :value="act.activityId" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="内容" required>
-          <el-input v-model="createForm.content" type="textarea" :rows="6" placeholder="分享你的志愿心得..." />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" :disabled="submitting" @click="handleCreate">发布</el-button>
-      </template>
-    </el-dialog>
+        <div class="card-actions" @click.stop>
+          <el-button type="danger" link @click="handleDelete(item.id)">
+            <el-icon><Delete /></el-icon> 删除
+          </el-button>
+        </div>
+      </div>
+
+      <el-empty v-if="!loading && experiences.length === 0" description="暂无心得记录，快去发布第一篇吧" :image-size="120" />
+    </div>
+
+    <div class="pagination-wrapper">
+      <el-pagination
+        v-if="total > 0"
+        v-model:current-page="queryParams.page"
+        v-model:page-size="queryParams.size"
+        :total="total"
+        :layout="isMobile ? 'prev, pager, next' : 'total, prev, pager, next'"
+        class="dc-pagination"
+        @current-change="fetchExperiences"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, View, Star, Delete } from '@element-plus/icons-vue'
 import { request } from '@/utils/request'
 
 const router = useRouter()
 
 const loading = ref(false)
 const experiences = ref<any[]>([])
-const myActivities = ref<any[]>([])
 const total = ref(0)
-const showCreateDialog = ref(false)
-const submitting = ref(false)
-
 const queryParams = reactive({ page: 1, size: 10 })
 
-const createForm = reactive({
-  title: '',
-  activityId: null as number | null,
-  content: '',
-  images: '[]'
-})
+// 解析图片JSON
+const getCover = (imagesJson: string) => {
+  try {
+    const imgs = JSON.parse(imagesJson || '[]')
+    return imgs.length > 0 ? imgs[0] : null
+  } catch (e) {
+    return null
+  }
+}
 
 const fetchExperiences = async () => {
   loading.value = true
@@ -97,41 +93,12 @@ const fetchExperiences = async () => {
   }
 }
 
-const fetchMyActivities = async () => {
-  try {
-    const res = await request.get('/registration/my', { page: 1, size: 100, status: 3 })
-    myActivities.value = res.data?.records || []
-  } catch (error) {
-    console.error('获取活动失败:', error)
-  }
-}
-
-const handleCreate = async () => {
-  if (!createForm.title || !createForm.content) {
-    ElMessage.warning('请填写标题和内容')
-    return
-  }
-  submitting.value = true
-  try {
-    await request.post('/experience', createForm)
-    ElMessage.success('发布成功')
-    showCreateDialog.value = false
-    createForm.title = ''
-    createForm.content = ''
-    createForm.activityId = null
-    fetchExperiences()
-  } catch (error) {
-    console.error('发布失败:', error)
-  } finally {
-    submitting.value = false
-  }
-}
-
 const handleDelete = (id: number) => {
-  ElMessageBox.confirm('确定要删除该心得吗？', '提示', {
-    confirmButtonText: '确定',
+  ElMessageBox.confirm('确定要永久删除这篇心得吗？', '确认删除', {
+    confirmButtonText: '确定删除',
     cancelButtonText: '取消',
-    type: 'warning'
+    type: 'warning',
+    buttonSize: 'default'
   }).then(async () => {
     try {
       await request.delete(`/experience/${id}`)
@@ -143,15 +110,188 @@ const handleDelete = (id: number) => {
   }).catch(() => {})
 }
 
+const isMobile = ref(window.innerWidth < 768)
+const handleResize = () => { isMobile.value = window.innerWidth < 768 }
+
 onMounted(() => {
+  window.addEventListener('resize', handleResize)
   fetchExperiences()
-  fetchMyActivities()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <style lang="scss" scoped>
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.anim-section { animation: fadeUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
 .my-experiences {
-  .header-actions { margin: 20px 0; }
-  .pagination { margin-top: 20px; justify-content: center; }
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  
+  h2 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0;
+  }
+
+  .floating-add-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+    box-shadow: 0 4px 12px rgba(0, 147, 233, 0.3);
+    transition: all 0.3s;
+    &:hover { transform: rotate(90deg) scale(1.1); }
+  }
+}
+
+.article-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1px; // Divider effect
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0,0,0,0.05);
+}
+
+.article-card {
+  background: #fff;
+  padding: 24px;
+  display: flex;
+  gap: 20px;
+  transition: all 0.2s;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+  
+  &:last-child { border-bottom: none; }
+  &:hover { 
+    background: #f8fafc;
+    .article-title { color: #0093E9; }
+  }
+
+  .card-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .article-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 10px;
+    line-height: 1.4;
+    transition: color 0.2s;
+  }
+
+  .article-excerpt {
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0 0 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .article-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: auto;
+
+    .meta-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #f0fdf4;
+      color: #16a34a;
+      font-weight: 600;
+      
+      &.draft { background: #f1f5f9; color: #64748b; }
+      &.rejected { background: #fef2f2; color: #ef4444; }
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+
+    .meta-date {
+      margin-left: auto;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+  }
+
+  .card-cover {
+    width: 140px;
+    height: 90px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s;
+    }
+  }
+  
+  &:hover .card-cover img { transform: scale(1.08); }
+
+  .card-actions {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  &:hover .card-actions { opacity: 1; }
+}
+
+.pagination-wrapper {
+  margin-top: 32px;
+  display: flex;
+  justify-content: center;
+}
+
+:deep(.dc-pagination) {
+  .el-pager li.is-active { background-color: #0093E9 !important; color: #fff !important; }
+}
+
+@media (max-width: 768px) {
+  .my-experiences { padding: 16px 12px 100px; }
+  .article-card {
+    padding: 16px;
+    flex-direction: column-reverse;
+    gap: 12px;
+    
+    .card-cover { width: 100%; height: 160px; }
+    .card-actions { opacity: 1; top: unset; bottom: 16px; right: 16px; }
+    .meta-date { display: none; }
+  }
 }
 </style>

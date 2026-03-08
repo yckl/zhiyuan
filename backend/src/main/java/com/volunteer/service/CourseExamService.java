@@ -6,6 +6,7 @@ import com.volunteer.vo.ExamResultVO;
 import com.volunteer.vo.ExamSubmitDTO;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 培训考试服务接口
@@ -55,14 +56,14 @@ public interface CourseExamService {
     com.volunteer.vo.TrainingStatsVO getTrainingStats();
 
     /**
-     * 获取继续学习的课程
+     * 获取继续学习的课程 (含进度和通过状态)
      */
-    Course getResumeCourse();
+    Map<String, Object> getResumeCourse();
 
     /**
-     * 获取必修课程列表
+     * 获取全部课程列表（含 courseType / passed / progress）
      */
-    List<Course> getMandatoryCourses();
+    List<Map<String, Object>> getAllCoursesWithStatus();
 
     /**
      * 获取待考提醒列表

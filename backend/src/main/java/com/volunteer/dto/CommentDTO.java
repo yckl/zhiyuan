@@ -49,6 +49,9 @@ public class CommentDTO {
     @Schema(description = "点赞数")
     private Integer likeCount;
 
+    @Schema(description = "评分(1-5星)")
+    private Integer rating;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 

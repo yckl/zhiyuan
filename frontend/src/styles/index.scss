@@ -1,219 +1,329 @@
-// 全局样式
-* {
+// ================================================================
+// 全局样式系统 - 适配移动端原生 App & 电脑端现代 SaaS
+// ================================================================
+
+// ================== 1. CSS 变量定义 ==================
+:root {
+  // 核心色彩
+  --app-bg: #F2F2F7; // iOS 风格背景灰
+  --primary-color: #00BFA6; // 主题色（青绿）
+  --primary-rgb: 0, 191, 166;
+  --primary-light: #33CCB8; // 主题色 - 浅
+  --primary-dark: #009688; // 主题色 - 深
+
+  // 布局尺寸
+  --nav-height: 44px; // 导航栏高度
+  --tabbar-height: 50px; // 底部 Tab 栏高度
+  --safe-area-bottom: env(safe-area-inset-bottom); // iOS 安全区
+
+  // 文字颜色
+  --text-primary: #1C1C1E;
+  --text-secondary: #8E8E93;
+  --text-placeholder: #C7C7CC;
+
+  // 背景与表面
+  --bg-page: #F2F2F7;
+  --bg-card: #FFFFFF;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+
+  // 边框与分割线
+  --border-color: rgba(0, 0, 0, 0.08);
+  --divider-color: rgba(0, 0, 0, 0.06);
+
+  // 圆角
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  // 阴影
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-float: 0 8px 28px rgba(0, 0, 0, 0.12);
+
+  // 过渡
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+
+  // Telegram 风格基础变量
+  --tg-bg-color: #F2F2F7;
+  --tg-secondary-bg: #FFFFFF;
+  --tg-text-color: #1C1C1E;
+  --tg-hint-color: #8E8E93;
+  --tg-link-color: #2481CC;
+  --tg-button-color: #2481CC;
+  --tg-button-text-color: #FFFFFF;
+  --tg-glass-bg: rgba(255, 255, 255, 0.7);
+  --tg-header-bg: rgba(255, 255, 255, 0.85);
+  --tg-card-bg: #FFFFFF;
+  --tg-border-color: rgba(0, 0, 0, 0.08);
+}
+
+
+// ================== 2. 全局重置 ==================
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-// ================== CSS变量定义（解决硬编码颜色问题） ==================
-:root {
-  // 文字颜色
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-  --text-placeholder: #c0c4cc;
-
-  // 背景颜色
-  --bg-page: #f5f7fa;
-  --bg-card: #ffffff;
-  --bg-hover: #f5f7fa;
-  --bg-active: #ecf5ff;
-
-  // 边框颜色
-  --border-color: #e4e7ed;
-  --border-light: #ebeef5;
-
-  // 阴影
-  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  --shadow-dark: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
-}
-
-html.dark {
-  // 暗色模式文字颜色
-  --text-primary: #e5eaf3;
-  --text-secondary: #a3a6ad;
-  --text-muted: #73767a;
-  --text-placeholder: #5a5e66;
-
-  // 暗色模式背景
-  --bg-page: #141414;
-  --bg-card: #1d1e1f;
-  --bg-hover: #262727;
-  --bg-active: #1a2030;
-
-  // 暗色模式边框
-  --border-color: #4c4d4f;
-  --border-light: #363637;
-
-  // 暗色模式阴影
-  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.3);
+  -webkit-tap-highlight-color: transparent; // 移动端去除点击高亮
 }
 
 html,
 body {
   height: 100%;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei',
+    sans-serif;
   font-size: 14px;
+  line-height: 1.5;
   color: var(--text-primary);
   background-color: var(--bg-page);
-  transition: background-color 0.3s, color 0.3s;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  // 移动端平滑滚动
+  -webkit-overflow-scrolling: touch;
 }
 
 #app {
   height: 100%;
 }
 
-/* ================== 暗黑模式核心适配 ================== */
-html.dark {
+// ================== 移动端 App Shell 滚动修复 ==================
+// mobile-main 是 flex:1 + overflow-y:auto 的滚动容器
+// 子页面不能用 min-height:100vh，否则撑满容器导致无法滚动
+.mobile-main>* {
+  min-height: auto !important;
+}
 
-  // 1. 全局背景变深
-  body {
-    background-color: #141414 !important;
-    color: #E5EAF3; // 文字变浅白
+
+// ================== 3. Element Plus 覆盖 ==================
+
+// --- el-card: 去边框，使用阴影 ---
+.el-card {
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-card) !important;
+  overflow: hidden;
+}
+
+// --- el-button: 去边框，圆润 ---
+.el-button {
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+
+  &--primary {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important; // 确保绿底白字
+
+    &:hover,
+    &:focus {
+      background-color: var(--primary-light) !important;
+      color: #ffffff !important;
+    }
+
+    &:active {
+      background-color: var(--primary-dark) !important;
+      color: #ffffff !important;
+    }
   }
 
-  // 2. Element Plus 卡片背景适配
-  .el-card,
-  .el-menu,
-  .el-header,
-  .el-aside {
-    background-color: #1D1E1F !important; // 深灰卡片背景
-    color: #E5EAF3 !important;
-    border-color: #4C4D4F !important; // 边框变暗
-  }
-
-  // 3. 标题文字强制变白
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    color: #fff !important;
-  }
-
-  // 4. 输入框背景适配
-  .el-input__wrapper,
-  .el-textarea__inner {
-    background-color: #2b2b2c !important;
-    box-shadow: 0 0 0 1px #4C4D4F inset !important;
-  }
-
-  // 5. 全局文字颜色修复（覆盖硬编码的 #333, #666, #999）
-  .title,
-  .name,
-  .label,
-  .info-label,
-  .course-title,
-  .section-title,
-  .card-title,
-  .exam-title,
-  .user-name,
-  .activity-name {
-    color: var(--text-primary) !important;
-  }
-
-  .description,
-  .subtitle,
-  .content,
-  .summary,
-  .course-desc,
-  .info-value,
-  .detail-text {
-    color: var(--text-secondary) !important;
-  }
-
-  .hint,
-  .tip,
-  .meta,
-  .count,
-  .time,
-  .date,
-  .course-meta,
-  .info-meta,
-  .sub-info {
-    color: var(--text-muted) !important;
-  }
-
-  // 6. 表格和列表项
-  .el-table {
+  &--default {
     background-color: var(--bg-card) !important;
     color: var(--text-primary) !important;
+    box-shadow: 0 0 0 1px var(--border-color) inset !important;
 
-    th,
-    td {
-      background-color: var(--bg-card) !important;
-    }
-
-    tr:hover>td {
-      background-color: var(--bg-hover) !important;
-    }
-  }
-
-  // 7. 统计卡片
-  .stat-card,
-  .info-card,
-  .data-card {
-    background-color: var(--bg-card) !important;
-    border-color: var(--border-color) !important;
-  }
-
-  // 8. 分页器
-  .el-pagination {
-    color: var(--text-primary) !important;
-
-    button,
-    .el-pager li {
-      background-color: var(--bg-card) !important;
-      color: var(--text-primary) !important;
+    &:hover,
+    &:focus {
+      color: var(--primary-color) !important;
+      box-shadow: 0 0 0 1px var(--primary-color) inset !important;
     }
   }
 }
 
-// 滚动条样式
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-// 暗黑模式下的滚动条
-html.dark ::-webkit-scrollbar-track {
-  background: #2b2b2c;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
+// --- el-input: 去边框，柔和 ---
+.el-input__wrapper {
+  border: none !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
+  border-radius: var(--radius-sm) !important;
+  transition: box-shadow var(--transition-fast);
 
   &:hover {
-    background: #a8a8a8;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset !important;
+  }
+
+  &.is-focus {
+    box-shadow: 0 0 0 2px var(--primary-color) inset !important;
   }
 }
 
-html.dark ::-webkit-scrollbar-thumb {
-  background: #555;
+.el-textarea__inner {
+  border: none !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
+  border-radius: var(--radius-sm) !important;
 
-  &:hover {
-    background: #777;
+  &:focus {
+    box-shadow: 0 0 0 2px var(--primary-color) inset !important;
   }
 }
 
-// 链接样式
-a {
-  color: #409eff;
-  text-decoration: none;
+// --- el-drawer: 去默认头部 padding 和边框 ---
+.el-drawer {
+  &__header {
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+    border-bottom: none !important;
+  }
 
-  &:hover {
-    color: #66b1ff;
+  &__body {
+    padding: 0 !important;
   }
 }
 
-// 通用类
+// --- el-dialog & el-message-box 统一重构 (Telegram Premium) ---
+.el-dialog {
+  border-radius: 20px !important;
+  border: none !important;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15) !important;
+  overflow: hidden;
+
+  @media only screen and (max-width: 768px) {
+    width: 90% !important;
+    max-width: 90% !important;
+    margin-top: 15vh !important;
+  }
+}
+
+.el-message-box {
+  --el-messagebox-width: 320px;
+  border-radius: 20px !important;
+  border: none !important;
+  padding: 8px !important;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18) !important;
+  overflow: hidden;
+
+  &__header {
+    display: none !important; // 去掉标题行和关闭按钮
+  }
+
+  &__content {
+    padding: 32px 24px 16px !important;
+    text-align: center !important;
+
+    .el-message-box__container {
+      margin-left: 0 !important;
+      justify-content: center !important;
+    }
+
+    .el-message-box__status {
+      display: none !important; // 去掉侧边图标，保持极简
+    }
+
+    .el-message-box__message {
+      padding-left: 0 !important;
+
+      p {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        color: #1C1C1E !important;
+        line-height: 1.5 !important;
+      }
+    }
+  }
+
+  &__btns {
+    padding: 0 16px 16px !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+
+    .el-button {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      padding: 10px 16px !important;
+      margin-left: 0 !important;
+      transition: background 0.2s;
+      border-radius: 12px !important;
+
+      &:active {
+        background: rgba(0, 0, 0, 0.05) !important;
+      }
+
+      &--primary {
+        color: var(--primary-color) !important;
+
+        // 核心：智能语义着色
+        // 当对话框类型为 warning 或 error 时，确认按钮自动变红
+        .el-message-box--warning &,
+        .el-message-box--error &,
+        &.el-button--danger,
+        &.danger-text-btn {
+          color: #FF3B30 !important;
+        }
+      }
+
+      &--default {
+        color: #8E8E93 !important;
+      }
+
+      // 针对“退出系统”等红色语义的兜底
+      &.danger-text-btn {
+        color: #FF3B30 !important;
+      }
+    }
+  }
+}
+
+// 模糊蒙版 (Liquid Glass Overlay)
+.el-overlay {
+  background-color: rgba(0, 0, 0, 0.35) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.el-dialog__body {
+  padding: 16px !important;
+
+  @media only screen and (max-width: 768px) {
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+}
+
+
+// ================== 4. 通用原子类 ==================
+
+// --- 移动端基础容器 ---
+.app-container {
+  background-color: var(--app-bg);
+  min-height: 100vh;
+  // 留出底部 TabBar + 安全区高度
+  padding-bottom: calc(var(--tabbar-height) + var(--safe-area-bottom));
+
+  @media only screen and (min-width: 769px) {
+    padding-bottom: 0 !important;
+  }
+}
+
+// --- 隐藏滚动条但允许滚动 ---
+.hide-scrollbar {
+  overflow: auto;
+  scrollbar-width: none; // Firefox
+  -ms-overflow-style: none; // IE / Edge
+
+  &::-webkit-scrollbar {
+    display: none; // Chrome / Safari
+  }
+}
+
+// --- 文本工具 ---
 .text-center {
   text-align: center;
 }
@@ -228,11 +338,28 @@ a {
   white-space: nowrap;
 }
 
-.cursor-pointer {
-  cursor: pointer;
+// --- Flex 布局 ---
+.flex {
+  display: flex;
 }
 
-// 间距
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+// --- 间距 ---
 .mt-10 {
   margin-top: 10px;
 }
@@ -265,142 +392,401 @@ a {
   padding: 20px;
 }
 
-// Flex 布局
-.flex {
-  display: flex;
-}
-
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flex-between {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.flex-1 {
-  flex: 1;
-}
-
-// 卡片阴影
-.card-shadow {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-// ================== 全站响应式适配 ==================
-
-// 表格横向滚动容器
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-// 平板端适配 (< 992px)
-@media only screen and (max-width: 992px) {
-  .el-dialog {
-    width: 80% !important;
-    max-width: 80% !important;
-  }
-  
-  .el-card__body {
-    padding: 15px !important;
-  }
-  
-  h1 { font-size: 22px !important; }
-  h2 { font-size: 18px !important; }
-  h3 { font-size: 16px !important; }
-}
-
-// 手机端适配 (< 768px)
+// --- 响应式显示 ---
 @media only screen and (max-width: 768px) {
-  // 弹窗全屏化
-  .el-dialog {
-    width: 90% !important;
-    max-width: 90% !important;
-    margin-top: 10vh !important;
+  .hidden-sm-and-down {
+    display: none !important;
   }
-  
-  .el-dialog__body {
-    padding: 15px !important;
-    max-height: 60vh;
-    overflow-y: auto;
-  }
-  
-  // 卡片内边距减小
-  .el-card__body {
-    padding: 12px !important;
-  }
-  
-  // 标题字号调整
-  h1, h2 { font-size: 18px !important; }
-  h3, h4 { font-size: 16px !important; }
-  h5, h6 { font-size: 14px !important; }
-  
-  // 表格强制滚动
-  .el-table {
-    max-width: 100%;
-    
-    &__body-wrapper {
-      overflow-x: auto !important;
-    }
-  }
-  
-  // 表单适配
-  .el-form-item__label {
-    font-size: 13px !important;
-  }
-  
-  .el-input__inner {
-    font-size: 14px !important;
-  }
-  
-  // 按钮组适配
-  .el-button-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  // 分页器紧凑模式
-  .el-pagination {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 8px;
-    
-    .el-pagination__sizes,
-    .el-pagination__jump {
-      display: none !important;
-    }
-  }
-  
-  // 隐藏不重要元素
+
   .hide-on-mobile {
     display: none !important;
   }
 }
 
-// 超小屏幕 (< 400px)
-@media only screen and (max-width: 400px) {
-  .el-dialog {
-    width: 95% !important;
-    margin-top: 5vh !important;
+@media only screen and (min-width: 769px) {
+  .hidden-md-and-up {
+    display: none !important;
   }
-  
-  .el-card__body {
-    padding: 10px !important;
+}
+
+
+// ================== 5. 滚动条美化（PC 端） ==================
+@media only screen and (min-width: 769px) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-  
-  .el-button {
-    padding: 8px 12px !important;
-    font-size: 12px !important;
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
   }
-  
-  .el-form-item {
-    margin-bottom: 12px !important;
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
+  }
+}
+
+
+// ================================================================
+// 6. Admin Premium Capsule UI (管理员端胶囊质感升级)
+// ================================================================
+.admin-main {
+
+  // ========== 6.1 按钮质感升级 ==========
+  .el-button.is-round,
+  .el-button--small.is-round {
+    padding: 10px 24px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    border: none !important;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+
+    &:active {
+      transform: scale(0.97);
+    }
+
+    // 顶部内发光（模拟光泽）
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      width: 80%;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, transparent 100%);
+      border-radius: 100px;
+      pointer-events: none;
+    }
+  }
+
+  // Primary 胶囊：主题色渐变 + 弥散彩影
+  .el-button--primary.is-round {
+    background: linear-gradient(135deg, var(--primary-light, #33CCB8) 0%, var(--primary-color, #00BFA6) 100%) !important;
+    box-shadow: 0 4px 14px rgba(0, 191, 166, 0.35);
+    color: #fff !important;
+
+    &:hover {
+      box-shadow: 0 6px 20px rgba(0, 191, 166, 0.45);
+      transform: translateY(-1px);
+    }
+  }
+
+  // Success 胶囊：碧绿渐变
+  .el-button--success.is-round {
+    background: linear-gradient(135deg, #70d995 0%, #59c781 100%) !important;
+    box-shadow: 0 4px 14px rgba(89, 199, 129, 0.35);
+    color: #fff !important;
+
+    &:hover {
+      box-shadow: 0 6px 20px rgba(89, 199, 129, 0.45);
+      transform: translateY(-1px);
+    }
+  }
+
+  // Warning 胶囊：暖橙渐变
+  .el-button--warning.is-round {
+    background: linear-gradient(135deg, #FFB74D 0%, #FF9800 100%) !important;
+    box-shadow: 0 4px 14px rgba(255, 152, 0, 0.3);
+    color: #fff !important;
+
+    &:hover {
+      box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+      transform: translateY(-1px);
+    }
+  }
+
+  // Danger 胶囊：柔红渐变
+  .el-button--danger.is-round {
+    background: linear-gradient(135deg, #FF7675 0%, #E74C3C 100%) !important;
+    box-shadow: 0 4px 14px rgba(231, 76, 60, 0.3);
+    color: #fff !important;
+
+    &:hover {
+      box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+      transform: translateY(-1px);
+    }
+  }
+
+  // Default/Info 胶囊：玻璃白
+  .el-button--default.is-round,
+  .el-button--info.is-round {
+    background: rgba(255, 255, 255, 0.9) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    color: var(--text-primary) !important;
+
+    &:hover {
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transform: translateY(-1px);
+    }
+  }
+
+  // ========== 6.2 所有 primary 非文字按钮也加渐变 ==========
+  .el-button--primary:not(.is-text):not(.is-link):not(.is-round) {
+    background: linear-gradient(135deg, var(--primary-light, #33CCB8) 0%, var(--primary-color, #00BFA6) 100%) !important;
+    box-shadow: 0 2px 8px rgba(0, 191, 166, 0.2);
+    color: #fff !important;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      width: 80%;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 100%);
+      border-radius: 100px;
+      pointer-events: none;
+    }
+
+    &:hover {
+      box-shadow: 0 4px 14px rgba(0, 191, 166, 0.35);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  // ========== 6.3 标签质感升级 (el-tag) ==========
+  .el-tag {
+    font-weight: 600;
+    border: 1px solid transparent;
+    transition: all 0.25s;
+  }
+
+  .el-tag.is-round {
+    padding: 4px 14px;
+  }
+
+  .el-tag--success {
+    background-color: rgba(89, 199, 129, 0.1) !important;
+    color: #00966d !important;
+    border-color: rgba(89, 199, 129, 0.2) !important;
+    box-shadow: 0 2px 6px rgba(89, 199, 129, 0.06);
+  }
+
+  .el-tag--warning {
+    background-color: rgba(217, 119, 6, 0.08) !important;
+    color: #b45309 !important;
+    border-color: rgba(217, 119, 6, 0.15) !important;
+    box-shadow: 0 2px 6px rgba(217, 119, 6, 0.05);
+  }
+
+  .el-tag--danger {
+    background-color: rgba(231, 76, 60, 0.08) !important;
+    color: #c0392b !important;
+    border-color: rgba(231, 76, 60, 0.15) !important;
+    box-shadow: 0 2px 6px rgba(231, 76, 60, 0.05);
+  }
+
+  .el-tag--info {
+    background-color: rgba(144, 147, 153, 0.08) !important;
+    color: #606266 !important;
+    border-color: rgba(144, 147, 153, 0.15) !important;
+  }
+
+  .el-tag--primary,
+  .el-tag:not([class*="--"]) {
+    background-color: rgba(0, 191, 166, 0.08) !important;
+    color: var(--primary-dark, #009688) !important;
+    border-color: rgba(0, 191, 166, 0.15) !important;
+    box-shadow: 0 2px 6px rgba(0, 191, 166, 0.05);
+  }
+
+  // ========== 6.4 输入框质感升级 ==========
+  .el-input.is-round .el-input__wrapper,
+  .el-input--round .el-input__wrapper {
+    background-color: #f0f2f5 !important;
+    box-shadow: none !important;
+    border: 1.5px solid transparent !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      background-color: #ebedf0 !important;
+    }
+
+    &.is-focus {
+      background-color: #fff !important;
+      border-color: var(--primary-color) !important;
+      box-shadow: 0 0 0 3px rgba(0, 191, 166, 0.12) !important;
+    }
+  }
+
+  // ========== 6.5 分段控制器 ==========
+  .el-radio-group {
+    .el-radio-button__inner {
+      border: none !important;
+      border-radius: 20px !important;
+      font-weight: 500;
+      transition: all 0.25s;
+    }
+
+    .el-radio-button__original-radio:checked+.el-radio-button__inner {
+      background: #fff !important;
+      color: var(--primary-color) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      font-weight: 600;
+    }
+  }
+}
+
+// ================================================================
+// 7. 搜索历史下拉框样式 (el-autocomplete)
+// ================================================================
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 14px;
+
+  .el-icon {
+    color: var(--text-secondary);
+    margin-right: 8px;
+  }
+
+  .history-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .delete-icon {
+    visibility: hidden;
+    color: var(--text-placeholder);
+    padding: 4px;
+    margin-right: 0;
+    border-radius: 50%;
+
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+  }
+
+  &:hover .delete-icon {
+    visibility: visible;
+  }
+}
+
+.clear-history {
+  padding: 8px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--divider-color);
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: var(--primary-color);
+    background: var(--bg-hover);
+  }
+}
+
+/* ================================================================ */
+/* Premium Telegram-style Dropdown (Global)                         */
+/* ================================================================ */
+.user-dropdown.el-popper {
+  background: var(--tg-header-bg) !important;
+  backdrop-filter: blur(25px) !important;
+  -webkit-backdrop-filter: blur(25px) !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--tg-border-color) !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25) !important;
+  padding: 8px !important;
+  min-width: 240px !important;
+  width: auto !important;
+  z-index: 10000 !important;
+  overflow: visible !important;
+  animation: menu-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  .el-dropdown-menu {
+    background: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .el-dropdown-menu__item {
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    margin: 2px 0;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--tg-text-color) !important;
+    font-size: 14.5px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    line-height: normal !important;
+    white-space: nowrap !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+
+    &:hover {
+      background: var(--bg-hover) !important;
+      color: var(--primary-color) !important;
+      transform: translateX(4px);
+    }
+
+    &.logout-item {
+      color: #ff3b30 !important;
+      border-top: 1px solid var(--tg-border-color) !important;
+      margin-top: 8px;
+      padding-top: 14px !important;
+
+      &:hover {
+        background: rgba(255, 59, 48, 0.08) !important;
+        color: #ff3b30 !important;
+      }
+    }
+  }
+
+  /* 菜单内容项 */
+  .menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+
+    .el-icon {
+      font-size: 20px;
+    }
+  }
+
+  /* 箭头样式统一 */
+  .el-popper__arrow {
+    &::before {
+      background: var(--tg-header-bg) !important;
+      border: 1px solid var(--tg-border-color) !important;
+      box-shadow: -1px -1px 1px rgba(0, 0, 0, 0.02) !important;
+    }
+  }
+}
+
+@keyframes menu-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }

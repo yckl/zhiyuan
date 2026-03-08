@@ -34,7 +34,7 @@ public class PointsMallServiceImpl implements PointsMallService {
     private final SysMessageService messageService;
 
     @Override
-    public List<MallGoods> getGoodsList(String category, Integer status) {
+    public List<MallGoods> getGoodsList(String category, Integer status, String name) {
         LambdaQueryWrapper<MallGoods> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MallGoods::getIsDeleted, 0);
         if (status != null) {
@@ -44,6 +44,9 @@ public class PointsMallServiceImpl implements PointsMallService {
         }
         if (category != null && !category.isEmpty()) {
             wrapper.eq(MallGoods::getCategory, category);
+        }
+        if (name != null && !name.isEmpty()) {
+            wrapper.like(MallGoods::getName, name);
         }
         wrapper.orderByAsc(MallGoods::getSortOrder).orderByDesc(MallGoods::getCreateTime);
         return goodsMapper.selectList(wrapper);

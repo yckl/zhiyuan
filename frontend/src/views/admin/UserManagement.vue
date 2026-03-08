@@ -8,7 +8,7 @@
 
     <el-card class="user-card" shadow="never">
       <template #header>
-        <div class="card-header">
+        <div class="card-header" :class="{ 'is-mobile': isMobile }">
           <span>用户列表</span>
           <div class="header-actions">
             <!-- 搜索栏 -->
@@ -16,42 +16,48 @@
               v-model="searchKeyword"
               placeholder="搜索用户名/姓名"
               clearable
-              style="width: 200px"
+              class="search-input"
               :prefix-icon="Search"
               @keyup.enter="handleSearch"
               @clear="handleSearch"
             />
-            <el-select v-model="roleFilter" placeholder="全部角色" clearable style="width: 120px" @change="handleSearch">
+            <el-select v-model="roleFilter" placeholder="角色" clearable class="filter-select" @change="handleSearch">
               <el-option label="志愿者" value="VOLUNTEER" />
               <el-option label="组织者" value="ORGANIZER" />
               <el-option label="管理员" value="ADMIN" />
             </el-select>
-            <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 120px" @change="handleSearch">
+            <el-select v-model="statusFilter" placeholder="状态" clearable class="filter-select" @change="handleSearch">
               <el-option label="正常" :value="1" />
               <el-option label="禁用" :value="0" />
             </el-select>
-            <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
-            <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-            
-            <!-- 新增按钮 -->
-            <el-button type="success" :icon="Plus" @click="handleAddUser">新增志愿者</el-button>
+            <div class="action-buttons-group">
+              <el-button type="primary" :icon="Search" @click="handleSearch">
+                <span>搜索</span>
+              </el-button>
+              <el-button :icon="Refresh" @click="handleReset">
+                <span>重置</span>
+              </el-button>
+              <el-button type="success" :icon="Plus" @click="handleAddUser">
+                <span>新增</span>
+              </el-button>
+            </div>
           </div>
         </div>
       </template>
 
       <!-- 统计卡片 -->
-      <div class="stats-row">
+      <div class="stats-row" :class="{ 'is-mobile': isMobile }">
         <div class="stat-card">
-          <div class="stat-icon" style="background: #409eff;">
+          <div class="stat-icon stat-total">
             <el-icon :size="24"><User /></el-icon>
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.total }}</div>
-            <div class="stat-label">总用户数</div>
+            <div class="stat-label">总用户</div>
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: #67c23a;">
+          <div class="stat-icon stat-volunteers">
             <el-icon :size="24"><UserFilled /></el-icon>
           </div>
           <div class="stat-info">
@@ -60,7 +66,7 @@
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: #e6a23c;">
+          <div class="stat-icon stat-organizers">
             <el-icon :size="24"><OfficeBuilding /></el-icon>
           </div>
           <div class="stat-info">
@@ -69,7 +75,7 @@
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: #f56c6c;">
+          <div class="stat-icon stat-disabled">
             <el-icon :size="24"><Lock /></el-icon>
           </div>
           <div class="stat-info">
@@ -85,7 +91,7 @@
         stripe
         border
         style="width: 100%"
-        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
+        class="hidden-sm-and-down custom-table"
       >
         <!-- 用户信息 -->
         <el-table-column label="用户" width="200">
@@ -141,7 +147,7 @@
         <el-table-column label="操作" min-width="240" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <!-- 积分调整 (仅志愿者) -->
+              <!-- 积分调整 (仅志愿者? -->
               <el-button 
                 v-if="row.role === 'VOLUNTEER'"
                 type="warning" 
@@ -204,6 +210,70 @@
         </el-table-column>
       </el-table>
 
+      <!-- 移动端卡片列?-->
+      <div class="hidden-md-and-up mobile-card-list">
+        <div v-for="item in users" :key="item.id" class="mobile-card">
+          <div class="card-header-mobile">
+            <div class="user-info-mobile">
+              <el-avatar :size="36" :src="item.avatar"><el-icon><User /></el-icon></el-avatar>
+              <div class="info">
+                <span class="username">{{ item.username }}</span>
+                <el-tag :type="getRoleType(item.role)" size="small">{{ getRoleLabel(item.role) }}</el-tag>
+              </div>
+            </div>
+            <el-tag :type="item.status === 1 ? 'success' : 'danger'" size="small">
+              {{ item.status === 1 ? '正常' : '禁用' }}
+            </el-tag>
+          </div>
+          
+          <div class="card-body-mobile" @click="handleViewDetail(item)">
+            <p v-if="item.realName"><label>姓名：</label>{{ item.realName }}</p>
+            <p v-if="item.phone"><label>电话：</label>{{ item.phone }}</p>
+            <p><label>注册：</label>{{ formatDate(item.createTime) }}</p>
+          </div>
+          
+          <div class="card-footer-mobile">
+            <el-button 
+              v-if="item.role === 'VOLUNTEER'"
+              type="warning" 
+              link 
+              size="small" 
+              @click="handleAdjustPoints(item)"
+            >
+              积分
+            </el-button>
+            <el-button type="primary" link size="small" @click="handleViewDetail(item)">详情</el-button>
+            
+            <el-popconfirm
+              v-if="item.status === 1"
+              title="确定禁用吗？"
+              @confirm="handleToggleStatus(item)"
+            >
+              <template #reference>
+                <el-button type="warning" link size="small" :loading="item.statusLoading">禁用</el-button>
+              </template>
+            </el-popconfirm>
+            <el-popconfirm
+              v-else
+              title="确定启用吗？"
+              @confirm="handleToggleStatus(item)"
+            >
+              <template #reference>
+                <el-button type="success" link size="small" :loading="item.statusLoading">启用</el-button>
+              </template>
+            </el-popconfirm>
+             <el-popconfirm
+                title="确定删除吗？"
+                @confirm="handleDeleteUser(item)"
+              >
+                <template #reference>
+                  <el-button type="danger" link size="small">删除</el-button>
+                </template>
+              </el-popconfirm>
+          </div>
+        </div>
+      </div>
+
       <el-empty
         v-if="!loading && users.length === 0"
         description="暂无用户数据"
@@ -216,7 +286,9 @@
           v-model:page-size="queryParams.size"
           :total="total"
           :page-sizes="[10, 20, 50]"
-          layout="total, sizes, prev, pager, next, jumper"
+          :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+          :pager-count="isMobile ? 5 : 7"
+          :small="isMobile"
           background
           @size-change="fetchUsers"
           @current-change="fetchUsers"
@@ -263,7 +335,7 @@
                 <el-input v-model="addForm.phone" placeholder="请输入手机号" />
             </el-form-item>
             <el-form-item label="专业班级" prop="className">
-                <el-input v-model="addForm.className" placeholder="例如：软件2401" />
+                <el-input v-model="addForm.className" placeholder="例如：软件 401" />
             </el-form-item>
         </el-form>
         <template #footer>
@@ -281,7 +353,7 @@
                 <span style="font-weight: bold">{{ currentVolunteer?.realName }} ({{ currentVolunteer?.username }})</span>
             </el-form-item>
             <el-form-item label="变动分值" prop="points">
-              <el-input-number v-model="pointsForm.points" :step="1" placeholder="正数增加，负数扣除" />
+              <el-input-number v-model="pointsForm.points" :step="1" placeholder="正数增加，负数扣减" />
               <div class="form-tip">输入正数增加积分，输入负数扣除积分</div>
             </el-form-item>
             <el-form-item label="调整原因" prop="reason">
@@ -299,7 +371,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, FormInstance } from 'element-plus'
 import {
@@ -319,6 +391,14 @@ const roleFilter = ref<string | null>(null)
 const statusFilter = ref<number | null>(null)
 const detailVisible = ref(false)
 const currentUser = ref<any>(null)
+
+const windowWidth = ref(window.innerWidth)
+const isMobile = ref(window.innerWidth < 768)
+
+const handleResize = () => {
+  windowWidth.value = window.innerWidth
+  isMobile.value = windowWidth.value < 768
+}
 
 const queryParams = reactive({
   page: 1,
@@ -424,7 +504,7 @@ const handleToggleStatus = async (row: any) => {
   row.statusLoading = true
   
   try {
-    await request.put(`/user/${row.id}/status`, null, {
+    await request.put(`/user/${row.id}/status`, {}, {
       params: { status: newStatus }
     })
     
@@ -451,22 +531,22 @@ const addForm = reactive({
     className: ''
 })
 
-const validatePass = (rule: any, value: any, callback: any) => {
+const validatePass = (_rule: any, value: any, callback: any) => {
   if (value === '') {
     callback(new Error('请输入密码'))
   } else {
     if (addForm.confirmPassword !== '') {
       if (!addFormRef.value) return
-      addFormRef.value.validateField('confirmPassword', () => null)
+      addFormRef.value.validateField('confirmPassword', () => {})
     }
     callback()
   }
 }
-const validatePass2 = (rule: any, value: any, callback: any) => {
+const validatePass2 = (_rule: any, value: any, callback: any) => {
   if (value === '') {
     callback(new Error('请再次输入密码'))
   } else if (value !== addForm.password) {
-    callback(new Error('两次输入密码不一致!'))
+    callback(new Error('两次输入密码不一致'))
   } else {
     callback()
   }
@@ -583,22 +663,37 @@ const submitAdjustPoints = async () => {
 }
 
 onMounted(() => {
+  window.addEventListener('resize', handleResize)
   fetchUsers()
   fetchStats()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <style lang="scss" scoped>
 .user-management {
+  background: var(--bg-page);
+  min-height: calc(100vh - 84px);
+  padding: 20px;
+
   .page-title {
     font-size: 18px;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
   }
 
   .user-card {
     margin-top: 20px;
     border-radius: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+
+    :deep(.el-card__header) {
+      border-bottom: 1px solid var(--border-light);
+    }
 
     .card-header {
       display: flex;
@@ -606,6 +701,7 @@ onMounted(() => {
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
+      color: var(--text-primary);
 
       .header-actions {
         display: flex;
@@ -628,13 +724,15 @@ onMounted(() => {
         align-items: center;
         gap: 16px;
         padding: 16px;
-        background: #f9f9f9;
+        background: var(--bg-card-hover);
+        border: 1px solid var(--border-light);
         border-radius: 10px;
         transition: all 0.3s;
 
         &:hover {
-          background: #f0f0f0;
+          background: var(--bg-page);
           transform: translateY(-2px);
+          box-shadow: var(--shadow-light);
         }
 
         .stat-icon {
@@ -645,20 +743,32 @@ onMounted(() => {
           align-items: center;
           justify-content: center;
           color: white;
+          
+          &.stat-total { background: #409eff; }
+          &.stat-volunteers { background: #67c23a; }
+          &.stat-organizers { background: #e6a23c; }
+          &.stat-disabled { background: #f56c6c; }
         }
 
         .stat-info {
           .stat-value {
             font-size: 24px;
             font-weight: 700;
-            color: #333;
+            color: var(--text-primary);
           }
 
           .stat-label {
             font-size: 13px;
-            color: #999;
+            color: var(--text-secondary);
           }
         }
+      }
+    }
+
+    .custom-table {
+      :deep(.el-table__header-wrapper th) {
+        background: var(--bg-page) !important;
+        color: var(--text-primary);
       }
     }
 
@@ -673,12 +783,12 @@ onMounted(() => {
 
         .username {
           font-weight: 500;
-          color: #333;
+          color: var(--text-primary);
         }
 
         .realname {
           font-size: 12px;
-          color: #999;
+          color: var(--text-muted);
         }
       }
     }
@@ -687,11 +797,11 @@ onMounted(() => {
       display: flex;
       align-items: center;
       gap: 6px;
-      color: #666;
+      color: var(--text-secondary);
       font-size: 13px;
       
       .el-icon {
-        color: #409eff;
+        color: var(--el-color-primary);
       }
     }
 
@@ -704,18 +814,160 @@ onMounted(() => {
     }
 
     .pagination-wrapper {
-      display: flex;
-      justify-content: center;
       margin-top: 20px;
       padding-top: 20px;
-      border-top: 1px solid #f0f0f0;
+      border-top: 1px solid var(--border-light);
+      display: flex;
+      justify-content: flex-end;
+      
+      @media (max-width: 768px) {
+        justify-content: center;
+        overflow: hidden; // Strictly prevent scroll
+        width: 100%;
+        
+        :deep(.el-pagination) {
+          flex-wrap: wrap;
+          justify-content: center;
+          width: 100%;
+          overflow: hidden;
+
+          .el-pager li {
+            min-width: 24px;
+          }
+          
+          button {
+            min-width: 24px;
+          }
+        }
+      }
     }
   }
 }
+
 .form-tip {
     font-size: 12px;
-    color: #909399;
+    color: var(--text-muted);
     line-height: 1.5;
     margin-top: 4px;
 }
+
+// Global mobile tweaks for this page
+@media (max-width: 768px) {
+  .user-management {
+    overflow-x: hidden; // Prevent horizontal scroll on page
+    padding: 10px;
+  }
+  
+  .user-card {
+    overflow: hidden; // Ensure card doesn't overflow
+    :deep(.el-card__body) {
+      padding: 10px !important;
+      overflow: hidden;
+    }
+  }
+  .user-card {
+      .card-header.is-mobile {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        
+        .header-actions {
+           width: 100%;
+           flex-direction: column;
+           gap: 10px;
+           
+           .search-input { width: 100% !important; }
+           .filter-select { width: 100% !important; }
+           
+           .action-buttons-group {
+              display: flex;
+              width: 100%;
+              gap: 8px;
+              
+              .el-button {
+                flex: 1;
+                margin-left: 0 !important;
+                height: 36px;
+                border-radius: 4px; // Force rectangular
+                
+                span { display: inline-block !important; }
+              }
+           }
+        }
+      }
+      
+      .stats-row.is-mobile {
+         flex-wrap: wrap;
+         gap: 10px;
+         .stat-card {
+            flex: 1 1 calc(50% - 10px); 
+            min-width: 0;
+            padding: 12px;
+            .stat-icon { width: 40px; height: 40px; }
+            .stat-info .stat-value { font-size: 18px; }
+         }
+      }
+
+      .mobile-card-list {
+        background: var(--bg-page);
+        padding: 4px;
+
+        .mobile-card {
+          background: var(--bg-card);
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 12px;
+          box-shadow: var(--shadow-light);
+          border: 1px solid var(--border-light);
+          
+          .card-header-mobile {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             border-bottom: 1px solid var(--border-light);
+             padding-bottom: 8px;
+             margin-bottom: 8px;
+             
+             .user-info-mobile {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                .info {
+                   display: flex;
+                   flex-direction: column;
+                   .username { font-weight: bold; font-size: 14px; color: var(--text-primary); }
+                }
+             }
+          }
+
+          .card-body-mobile {
+             padding-bottom: 8px;
+             p {
+                margin: 4px 0;
+                font-size: 13px;
+                color: var(--text-secondary);
+                display: flex;
+                label { color: var(--text-muted); width: 60px; }
+             }
+          }
+          
+          .card-footer-mobile {
+             border-top: 1px solid var(--border-light);
+             padding-top: 8px;
+             display: flex;
+             justify-content: flex-end;
+             gap: 8px;
+             flex-wrap: wrap;
+          }
+        }
+      }
+    }
+    
+    :deep(.el-pagination) {
+       justify-content: center;
+       .el-pagination__sizes { display: none; }
+       .el-pagination__jump { display: none; }
+    }
+  }
+
 </style>

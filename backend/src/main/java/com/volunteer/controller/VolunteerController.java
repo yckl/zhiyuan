@@ -109,4 +109,25 @@ public class VolunteerController {
             return Result.error(e.getMessage());
         }
     }
+
+    /**
+     * 获取个人中心统计简报 (实时同步)
+     */
+    @GetMapping("/statistics")
+    @Operation(summary = "获取个人中心统计数据", description = "获取志愿时长、服务次数、累计积分等实时统计")
+    public Result<VolunteerDTO> getStatistics() {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
+
+        try {
+            // getVolunteerProfile 已经更新为实时计算
+            VolunteerDTO stats = volunteerService.getVolunteerProfile(userId);
+            return Result.success(stats);
+        } catch (Exception e) {
+            log.error("获取统计数据失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
 }

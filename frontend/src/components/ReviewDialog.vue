@@ -63,7 +63,7 @@ const form = reactive({
 })
 
 const rules = {
-  score: [{ required: true, message: '请打个分吧', trigger: 'change' }],
+  score: [{ required: true, message: '请打个分', trigger: 'change' }],
   content: [{ required: true, message: '请输入评价内容', trigger: 'blur' }]
 }
 
@@ -84,7 +84,7 @@ const handleSubmit = async () => {
           activityId: activityId.value,
           ...form
         })
-        ElMessage.success('感谢您的评价！')
+        ElMessage.success('感谢您的评价')
         visible.value = false
         emit('success')
       } catch (error: any) {

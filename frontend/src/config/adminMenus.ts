@@ -25,7 +25,7 @@ export const adminMenus: MenuItem[] = [
         icon: User,
         children: [
             { name: '志愿者管理', path: '/admin/user/volunteer' },
-            { name: '组织者管理', path: '/admin/user/organizer' }
+            { name: '组织管理', path: '/admin/user/organizer' }
         ]
     },
     {

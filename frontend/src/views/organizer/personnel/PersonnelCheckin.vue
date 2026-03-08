@@ -1,656 +1,654 @@
 <template>
-  <div class="org-checkin-page">
-    <!-- 活动选择器 -->
-    <el-card v-if="!activityId" class="selector-card" shadow="hover">
-      <template #header>
-        <div class="card-header">
-          <el-icon :size="20"><VideoCamera /></el-icon>
-          <span class="title">选择活动进行现场签到</span>
+  <div class="checkin-container" v-loading="pageLoading">
+    <!-- 1. 顶部状态栏 (极光青渐? -->
+    <div class="stats-header">
+      <div class="header-main">
+        <div class="activity-info">
+          <h2 class="activity-title">{{ activityTitle || '加载中...' }}</h2>
+          <p class="activity-subtitle">现场核销控制</p>
         </div>
-      </template>
-      <el-table :data="activities" v-loading="activitiesLoading" stripe>
-        <el-table-column prop="title" label="活动名称" min-width="200" />
-        <el-table-column label="开展时间" width="180">
-          <template #default="{ row }">
-            <div class="time-cell">
-              <el-icon><Clock /></el-icon>
-              {{ formatDate(row.startTime) }}
+        <div class="stats-pill">
+          <span class="count">{{ stats.checked }}</span>
+          <span class="total">/ {{ stats.total }}</span>
+        </div>
+      </div>
+      <div class="progress-container">
+        <div class="progress-bar" :style="{ width: stats.progress + '%' }"></div>
+      </div>
+    </div>
+
+    <!-- 2. 核心核销?(动?QR + 扫码) -->
+    <div class="checkin-hub">
+      <div class="hub-tabs">
+        <div 
+          class="hub-tab-item" 
+          :class="{ active: activeHubTab === 'qr' }"
+          @click="activeHubTab = 'qr'"
+        >展示二维码</div>
+        <div 
+          class="hub-tab-item" 
+          :class="{ active: activeHubTab === 'scan' }"
+          @click="activeHubTab = 'scan'"
+        >扫描学生</div>
+      </div>
+
+      <div class="hub-content">
+        <!-- 二维码展示模式 -->
+        <div v-if="activeHubTab === 'qr'" class="qr-display-mode">
+          <div class="qr-card">
+            <qrcode-vue 
+              v-if="qrToken" 
+              :value="qrToken" 
+              :size="200" 
+              level="H" 
+              class="qr-code" 
+            />
+            <div v-else class="qr-placeholder">
+              <el-icon class="is-loading"><Loading /></el-icon>
             </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" align="center">
-          <template #default="{ row }">
-            <el-button type="success" @click="selectActivity(row.id)">
-              <el-icon><VideoPlay /></el-icon> 开始
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
-    <!-- 签到主界面 - 左右分栏 -->
-    <template v-else>
-      <el-page-header @back="exitCheckin" class="mb-20">
-        <template #content>
-          <span class="page-title">{{ activity.title }} - 现场签到</span>
-        </template>
-        <template #extra>
-          <el-tag type="success" size="large" effect="dark">
-            <el-icon><Timer /></el-icon> 自动刷新中
-          </el-tag>
-        </template>
-      </el-page-header>
-
-      <el-row :gutter="24">
-        <!-- 左侧：扫码展示区 -->
-        <el-col :span="10">
-          <el-card class="qr-card" shadow="hover">
-            <div class="qr-zone">
-              <h2 class="qr-title">扫码签到</h2>
-              <div class="qr-code-wrapper" v-loading="qrLoading">
-                <div class="qr-code-box" v-if="checkinData.checkinCode">
-                  <!-- 二维码图片 (如果不方便引入库，可暂时用图片占位，重点展示签到码) -->
-                  <!-- 这里假设后端返回的是 token，前端生成 QR，或者后端直接返回 QR 图片Url -->
-                  <!-- 简化方案：直接展示大号签到码 -->
-                  <div class="check-code-display">
-                    <div class="label">活动签到码</div>
-                    <div class="code">{{ checkinData.checkinCode }}</div>
-                  </div>
-                  
-                  <div class="qr-placeholder" v-if="checkinData.qrcodeContent">
-                    <!-- 这里可以使用 qrcode.vue 组件，如果项目中引入了的话 -->
-                    <!-- 暂时保留样式，但提示这是二维码区域 -->
-                    <div class="qr-grid">
-                      <div v-for="i in 121" :key="i" 
-                           :class="['qr-cell', Math.random() > 0.5 ? 'filled' : '']">
-                      </div>
-                    </div>
-                    <div class="qr-logo">
-                      <el-icon :size="32"><VideoCamera /></el-icon>
-                    </div>
-                  </div>
-                  <div class="qr-hint">
-                    请志愿者输入签到码或扫码签到
-                    <el-button link type="primary" size="small" @click="fetchCheckinCode">刷新</el-button>
-                  </div>
-                </div>
-                <div v-else class="qr-error">
-                  <el-empty description="无法获取签到码" />
-                  <el-button type="primary" @click="fetchCheckinCode">重新获取</el-button>
-                </div>
-              </div>
-
-              <!-- 进度统计 -->
-              <div class="stats-section">
-                <el-progress
-                  type="dashboard"
-                  :percentage="checkinPercentage"
-                  :width="160"
-                  :stroke-width="12"
-                  :color="progressColors"
-                >
-                  <template #default>
-                    <div class="progress-content">
-                      <div class="progress-value">{{ checkedInCount }}</div>
-                      <div class="progress-label">已签到</div>
-                    </div>
-                  </template>
-                </el-progress>
-                <div class="stats-detail">
-                  <div class="stat-item">
-                    <span class="stat-value total">{{ totalApproved }}</span>
-                    <span class="stat-label">总报名</span>
-                  </div>
-                  <div class="stat-item">
-                    <span class="stat-value pending">{{ pendingCount }}</span>
-                    <span class="stat-label">待签到</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 最近签到动态 -->
-              <div class="recent-checkins" v-if="recentCheckins.length > 0">
-                <h4>最近签到</h4>
-                <el-scrollbar height="120px">
-                  <div v-for="item in recentCheckins" :key="item.id" class="recent-item">
-                    <el-avatar :size="24" :src="item.avatar">{{ item.name?.[0] }}</el-avatar>
-                    <span class="name">{{ item.name }}</span>
-                    <span class="time">{{ item.time }}</span>
-                  </div>
-                </el-scrollbar>
-              </div>
+            <div class="refresh-hint">
+              <el-icon><Refresh /></el-icon>
+              <span>{{ countdown }}s 后自动刷新</span>
             </div>
-          </el-card>
-        </el-col>
+          </div>
+          <div class="backup-code-zone">
+            <span class="label">备用数字</span>
+            <div class="code-digits">
+              <span v-for="(d, i) in backupCode" :key="i" class="digit">{{ d }}</span>
+            </div>
+          </div>
+        </div>
 
-        <!-- 右侧：人工补签列表 -->
-        <el-col :span="14">
-          <el-card class="manual-card" shadow="hover">
-            <template #header>
-              <div class="card-header">
-                <div class="header-left">
-                  <el-icon><Edit /></el-icon>
-                  <span class="title">人工补签通道</span>
-                  <el-tag type="info" size="small">共 {{ filteredList.length }} 人</el-tag>
+        <!-- 摄像头扫描模式 -->
+        <div v-else class="camera-scan-mode">
+          <div id="reader" class="scanner-box"></div>
+          <div class="scan-overlay">
+            <div class="scan-frame">
+              <div class="corner tl"></div>
+              <div class="corner tr"></div>
+              <div class="corner bl"></div>
+              <div class="corner br"></div>
+              <div class="scan-line"></div>
+            </div>
+            <p class="scan-tips">请将学生出示的二维码置于框内</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 名单管理区域 (标签页切换) -->
+    <div class="management-zone">
+      <el-tabs v-model="activeTab" class="custom-tabs">
+        <el-tab-pane label="待核销" name="unchecked">
+          <div class="list-wrapper">
+            <div v-for="item in uncheckedList" :key="item.id" class="user-card">
+              <div class="user-info">
+                <el-avatar :size="40" :src="item.volunteerAvatar">{{ item.volunteerName?.charAt(0) }}</el-avatar>
+                <div class="text">
+                  <span class="name">{{ item.volunteerName }}</span>
+                  <span class="sid">{{ item.studentId }}</span>
                 </div>
-                <el-input
-                  v-model="searchKeyword"
-                  placeholder="搜索姓名/学号"
-                  style="width: 200px"
-                  clearable
-                >
-                  <template #prefix>
-                    <el-icon><Search /></el-icon>
-                  </template>
-                </el-input>
               </div>
-            </template>
+              <button class="action-btn confirm" @click="handleManualCheckin(item)">确认到场</button>
+            </div>
+            <el-empty v-if="uncheckedList.length === 0" description="暂无待核销人员" />
+          </div>
+        </el-tab-pane>
+        <el-tab-pane label="已核销" name="checked">
+          <div class="list-wrapper">
+            <div v-for="item in checkedList" :key="item.id" class="user-card done">
+              <div class="user-info">
+                <el-avatar :size="40" :src="item.volunteerAvatar">{{ item.volunteerName?.charAt(0) }}</el-avatar>
+                <div class="text">
+                  <span class="name">{{ item.volunteerName }}</span>
+                  <span class="time">{{ formatTime(item.signInTime) }} 已核销</span>
+                </div>
+              </div>
+              <button class="action-btn rollback" @click="handleRollback(item)">撤回</button>
+            </div>
+            <el-empty v-if="checkedList.length === 0" description="暂无已核销人员" />
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
 
-            <el-table
-              :data="filteredList"
-              v-loading="loading"
-              stripe
-              height="500"
-              style="width: 100%"
-            >
-              <el-table-column label="志愿者" min-width="150">
-                <template #default="{ row }">
-                  <div class="volunteer-cell">
-                    <el-avatar :size="36" :src="row.avatar">
-                      <el-icon><User /></el-icon>
-                    </el-avatar>
-                    <div class="info">
-                      <div class="name">{{ row.volunteerName || '未知' }}</div>
-                      <div class="student-id">{{ row.studentId || '-' }}</div>
-                    </div>
-                  </div>
-                </template>
-              </el-table-column>
+    <!-- 4. 底部活动选择区域 (抽屉) -->
+    <div class="activity-selector" @click="showActivityDrawer = true">
+      <el-icon><Menu /></el-icon>
+      <span>切换活动</span>
+    </div>
 
-              <el-table-column label="签到状态" width="100" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="row.signInTime ? 'success' : 'warning'" effect="light">
-                    {{ row.signInTime ? '已签到' : '未签到' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
+    <el-drawer
+      v-model="showActivityDrawer"
+      direction="btt"
+      size="50%"
+      title="选择核销活动"
+      custom-class="ios-drawer"
+    >
+      <div class="drawer-list">
+        <div 
+          v-for="a in activities" 
+          :key="a.id" 
+          class="drawer-item"
+          :class="{ active: currentActivityId === a.id }"
+          @click="selectActivity(a)"
+        >
+          <span class="title">{{ a.title }}</span>
+          <el-icon v-if="currentActivityId === a.id"><Check /></el-icon>
+        </div>
+      </div>
+    </el-drawer>
 
-              <el-table-column label="签到时间" width="100">
-                <template #default="{ row }">
-                  <span v-if="row.signInTime">{{ formatTime(row.signInTime) }}</span>
-                  <span v-else class="text-muted">-</span>
-                </template>
-              </el-table-column>
-
-              <el-table-column label="操作" width="120" align="center" fixed="right">
-                <template #default="{ row }">
-                  <el-button
-                    v-if="!row.signInTime"
-                    type="success"
-                    size="small"
-                    @click="handleManualCheckin(row)"
-                    :loading="processingId === row.id"
-                  >
-                    <el-icon><Check /></el-icon> 确认到场
-                  </el-button>
-                  <span v-else class="text-success">
-                    <el-icon><CircleCheck /></el-icon>
-                  </span>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-card>
-        </el-col>
-      </el-row>
-    </template>
+    <!-- 成功提示音效/触感反馈模拟环境 -->
+    <audio ref="successAudio" src="https://assets.mixkit.co/active_storage/sfx/2211/2211-preview.mp3" style="display:none"></audio>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import {
-  VideoCamera, Clock, VideoPlay, Timer, Edit, Search, User, Check, CircleCheck
-} from '@element-plus/icons-vue'
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { request } from '@/utils/request'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading, Refresh, Check, Menu } from '@element-plus/icons-vue'
+import QrcodeVue from 'qrcode.vue'
+import { Html5QrcodeScanner } from 'html5-qrcode'
 import dayjs from 'dayjs'
 
-// 状态
-const activityId = ref<number | null>(null)
-const activities = ref<any[]>([])
-const activitiesLoading = ref(false)
-const activity = ref<any>({})
+const pageLoading = ref(false)
+const currentActivityId = ref<number | null>(null)
+const activityTitle = ref('')
+const activeHubTab = ref<'qr' | 'scan'>('qr')
+const activeTab = ref('unchecked')
+const showActivityDrawer = ref(false)
+
+const qrToken = ref('')
+const backupCode = ref<string[]>([])
+const countdown = ref(30)
+let timer: any = null
+
+const stats = reactive({
+  total: 0,
+  checked: 0,
+  progress: 0
+})
+
 const registrations = ref<any[]>([])
-const loading = ref(false)
-const processingId = ref<number | null>(null)
-const searchKeyword = ref('')
-const refreshTimer = ref<number | null>(null)
-const checkinData = ref<any>({})
-const qrLoading = ref(false)
+const activities = ref<any[]>([])
 
-// 状态映射
-const STATUS_MAP: Record<number, { label: string; type: string }> = {
-  0: { label: '草稿', type: 'info' },
-  1: { label: '待审核', type: 'warning' },
-  2: { label: '已发布', type: 'success' },
-  3: { label: '进行中', type: 'primary' },
-  4: { label: '已结束', type: 'info' },
-  5: { label: '已取消', type: 'danger' }
-}
+const uncheckedList = computed(() => registrations.value.filter(r => r.status === 1 || r.status === 'pending'))
+const checkedList = computed(() => registrations.value.filter(r => r.status === 2 || r.status === 'checked_in'))
 
-const getStatusLabel = (status: number) => STATUS_MAP[status]?.label || '未知'
-const getStatusType = (status: number) => STATUS_MAP[status]?.type || 'info'
-
-// 计算属性
-const filteredList = computed(() => {
-  if (!searchKeyword.value) return registrations.value
-  const kw = searchKeyword.value.toLowerCase()
-  return registrations.value.filter(
-    r => (r.volunteerName && r.volunteerName.toLowerCase().includes(kw)) ||
-         (r.studentId && r.studentId.includes(kw))
-  )
-})
-
-const totalApproved = computed(() => registrations.value.length)
-const checkedInCount = computed(() => registrations.value.filter(r => r.signInTime).length)
-const pendingCount = computed(() => totalApproved.value - checkedInCount.value)
-const checkinPercentage = computed(() => {
-  if (totalApproved.value === 0) return 0
-  return Math.round((checkedInCount.value / totalApproved.value) * 100)
-})
-
-// 进度条颜色
-const progressColors = [
-  { color: '#f56c6c', percentage: 30 },
-  { color: '#e6a23c', percentage: 60 },
-  { color: '#67c23a', percentage: 100 }
-]
-
-// 最近签到记录 (模拟)
-const recentCheckins = computed(() => {
-  return registrations.value
-    .filter(r => r.signInTime)
-    .sort((a, b) => new Date(b.signInTime).getTime() - new Date(a.signInTime).getTime())
-    .slice(0, 5)
-    .map(r => ({
-      id: r.id,
-      name: r.volunteerName,
-      avatar: r.volunteerAvatar,
-      time: dayjs(r.signInTime).format('HH:mm:ss')
-    }))
-})
-
-const formatDate = (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'
-const formatTime = (date: string) => date ? dayjs(date).format('HH:mm:ss') : '-'
-
-// API 调用
+// 1. 获取活动列表
 const fetchActivities = async () => {
-  activitiesLoading.value = true
   try {
-    const res = await request.get('/activity/my', { page: 1, size: 100 })
-    // 只显示可以签到的活动 (已发布或进行中)
-    activities.value = (res.data?.records || []).filter(
-      (a: any) => a.status === 2 || a.status === 3
-    )
-  } catch (e) {
-    console.error('获取活动列表失败:', e)
-  } finally {
-    activitiesLoading.value = false
-  }
-}
-
-const fetchActivity = async () => {
-  if (!activityId.value) return
-  try {
-    const res = await request.get(`/activity/${activityId.value}`)
-    activity.value = res.data || {}
-  } catch (e) {
-    console.error('获取活动信息失败:', e)
-  }
-}
-
-const fetchRegistrations = async () => {
-  if (!activityId.value) return
-  loading.value = true
-  try {
-    // 获取已通过审核(1)和已签到(2)的报名列表
-    const res = await request.get(`/registration/activity/${activityId.value}`, {
-      page: 1, size: 1000
-    })
-    // 过滤出状态为1或2的记录
-    const allRecords = res.data?.records || res.data || []
-    registrations.value = allRecords.filter((r: any) => r.status === 1 || r.status === 2)
-  } catch (e) {
-    console.error('获取报名列表失败:', e)
-  } finally {
-    loading.value = false
-  }
-}
-
-const fetchCheckinCode = async () => {
-  if (!activityId.value) return
-  qrLoading.value = true
-  try {
-    const res = await request.get(`/organizer/checkin/activity/${activityId.value}/qrcode`)
-    checkinData.value = res.data || {}
-    console.log('签到码获取成功:', checkinData.value)
-  } catch (e) {
-    console.error('获取签到码失败:', e)
-    ElMessage.error('获取签到码失败')
-  } finally {
-    qrLoading.value = false
-  }
-}
-
-const handleManualCheckin = async (row: any) => {
-  processingId.value = row.id
-  try {
-    await request.post(`/registration/signin/${row.id}`)
-    ElMessage.success(`${row.volunteerName} 签到成功！`)
-    
-    // 更新本地状态
-    row.signInTime = new Date().toISOString()
-  } catch (e) {
-    console.error('签到失败:', e)
-    ElMessage.error('签到失败，请重试')
-  } finally {
-    processingId.value = null
-  }
-}
-
-const selectActivity = (id: number) => {
-  activityId.value = id
-}
-
-const exitCheckin = () => {
-  activityId.value = null
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-    refreshTimer.value = null
-  }
-}
-
-// 自动刷新机制 - 每5秒刷新
-const startAutoRefresh = () => {
-  if (refreshTimer.value) clearInterval(refreshTimer.value)
-  refreshTimer.value = window.setInterval(() => {
-    if (activityId.value) {
-      fetchRegistrations()
+    const res = await request.get('/activity/my', { page: 1, size: 50 })
+    activities.value = res.data?.records || []
+    if (activities.value.length > 0 && !currentActivityId.value) {
+      selectActivity(activities.value[0])
     }
-  }, 5000)
+  } catch (e) {
+    ElMessage.error('获取活动列表失败')
+  }
 }
 
-watch(activityId, (newId) => {
+// 2. 选择活动
+const selectActivity = (a: any) => {
+  currentActivityId.value = a.id
+  activityTitle.value = a.title
+  showActivityDrawer.value = false
+  fetchData()
+}
+
+// 3. 获取核心数据 (名单 + 统计)
+const fetchData = async () => {
+  if (!currentActivityId.value) return
+  pageLoading.value = true
+  try {
+    const [regRes, statsRes] = await Promise.all([
+      request.get(`/organizer/checkin/activity/${currentActivityId.value}/attendees`),
+      request.get(`/organizer/checkin/stats/${currentActivityId.value}`)
+    ])
+    registrations.value = regRes.data?.attendees || []
+    Object.assign(stats, statsRes.data)
+    
+    // 强制同步统计数字 (防止后端统计接口延迟)
+    stats.total = registrations.value.length
+    stats.checked = checkedList.value.length
+    
+    console.log('名单获取成功, 总人数:', stats.total, '已到:', stats.checked)
+    console.log('API 返回的已签到名单:', checkedList.value)
+    
+    updateQRCode()
+  } catch (e) {
+    console.error('获取名单失败:', e)
+    ElMessage.error('数据同步失败')
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+// 自动监听活动切换，确保数据实时刷新
+watch(() => currentActivityId.value, (newId) => {
   if (newId) {
-    fetchActivity()
-    fetchRegistrations()
-    fetchCheckinCode() // 获取签到码
-    startAutoRefresh()
+    fetchData()
+  }
+}, { immediate: true })
+
+// 4. 二维码逻辑
+const updateQRCode = async () => {
+  if (!currentActivityId.value) return
+  try {
+    const res = await request.get(`/organizer/checkin/activity/${currentActivityId.value}/qrcode`)
+    qrToken.value = res.data.qrcodeContent
+    backupCode.value = res.data.checkinCode.split('')
+    countdown.value = 30
+    resetTimer()
+  } catch (e) {
+    console.error('QR刷新失败')
+  }
+}
+
+const resetTimer = () => {
+  if (timer) clearInterval(timer)
+  timer = setInterval(() => {
+    if (countdown.value > 0) {
+      countdown.value--
+    } else {
+      updateQRCode()
+    }
+  }, 1000)
+}
+
+// 5. 核销动作
+const handleManualCheckin = async (item: any) => {
+  try {
+    await request.post('/organizer/checkin/manual', { registrationId: item.id })
+    playSuccessEffect()
+    ElMessage.success(`${item.volunteerName} 核销成功`)
+    fetchData()
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '核销失败')
+  }
+}
+
+const handleRollback = async (item: any) => {
+  try {
+    await ElMessageBox.confirm(`确定要撤销 ${item.volunteerName} 的核销记录吗？`, '提示')
+    await request.post(`/organizer/checkin/rollback/${item.id}`)
+    ElMessage.success('已撤销')
+    fetchData()
+  } catch (e) {
+    // 
+  }
+}
+
+// 6. 扫码逻辑 (html5-qrcode)
+let scanner: any = null
+watch(activeHubTab, (val) => {
+  if (val === 'scan') {
+    initScanner()
   } else {
-    fetchActivities()
+    stopScanner()
   }
 })
+
+const initScanner = () => {
+  setTimeout(() => {
+    scanner = new Html5QrcodeScanner("reader", { 
+      fps: 10, 
+      qrbox: { width: 250, height: 250 },
+      aspectRatio: 1.0
+    }, false)
+    scanner.render(onScanSuccess, onScanFailure)
+  }, 100)
+}
+
+const stopScanner = () => {
+  if (scanner) {
+    scanner.clear().catch((e: any) => console.error(e))
+  }
+}
+
+const onScanSuccess = async (decodedText: string) => {
+  // volunteer://checkin?token=xxx&activityId=xxx
+  if (decodedText.startsWith('volunteer://checkin')) {
+    const url = new URL(decodedText.replace('volunteer://', 'http://'))
+    const token = url.searchParams.get('token')
+    if (token) {
+      try {
+        await request.post('/organizer/checkin/verify', { token })
+        playSuccessEffect()
+        ElMessage.success('扫码核销成功')
+        fetchData()
+      } catch (e: any) {
+        ElMessage.error(e.response?.data?.message || '核销失败')
+      }
+    }
+  }
+}
+
+const onScanFailure = (error: any) => {
+  // 静默失败
+}
+
+// 7. 辅助函数
+const successAudio = ref<HTMLAudioElement | null>(null)
+const playSuccessEffect = () => {
+  if (successAudio.value) successAudio.value.play().catch(() => {})
+  if ('vibrate' in navigator) navigator.vibrate(100)
+}
+
+const formatTime = (t: string) => t ? dayjs(t).format('HH:mm') : ''
 
 onMounted(() => {
   fetchActivities()
 })
 
 onUnmounted(() => {
-  if (refreshTimer.value) {
-    clearInterval(refreshTimer.value)
-  }
+  if (timer) clearInterval(timer)
+  stopScanner()
 })
 </script>
 
 <style scoped lang="scss">
-.org-checkin-page {
-  padding: 10px;
+.checkin-container {
+  min-height: 100vh;
+  background: #F2F2F7;
+  padding-bottom: 140px;
+  position: relative;
+}
 
-  .selector-card {
-    border-radius: 12px;
-    .card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      .title { font-weight: 600; font-size: 16px; }
-    }
-  }
+/* 1. Header */
+.stats-header {
+  background: linear-gradient(135deg, #0093E9 0%, #80D0C7 100%);
+  padding: 30px 20px 24px;
+  color: #fff;
+  border-radius: 0 0 24px 24px;
+  box-shadow: 0 4px 20px rgba(0, 147, 233, 0.2);
 
-  .time-cell {
+  .header-main {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 6px;
-    .el-icon { color: var(--el-color-primary); }
+    margin-bottom: 16px;
   }
 
-  .page-title {
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  // 左侧 QR 区域
-  .qr-card {
-    border-radius: 12px;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    
-    :deep(.el-card__body) {
-      padding: 30px;
-    }
-  }
-
-  .qr-zone {
-    text-align: center;
-    color: white;
-
-    .qr-title {
-      font-size: 24px;
-      margin: 0 0 24px;
-      font-weight: 700;
-    }
-
-    .qr-code-wrapper {
-      margin-bottom: 30px;
-    }
-
-    .qr-placeholder {
-      width: 220px;
-      height: 220px;
-      margin: 0 auto 16px;
-      background: white;
-      border-radius: 12px;
-      padding: 15px;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      .qr-grid {
-        display: grid;
-        grid-template-columns: repeat(11, 1fr);
-        gap: 2px;
-        width: 100%;
-        height: 100%;
-      }
-
-      .qr-cell {
-        background: #eee;
-        border-radius: 1px;
-        &.filled { background: #1a1a2e; }
-      }
-
-      .qr-logo {
-        position: absolute;
-        width: 50px;
-        height: 50px;
-        background: white;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        .el-icon { color: #409eff; }
-      }
-    }
-
-    .check-code-display {
-      margin-bottom: 20px;
-      padding: 15px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 8px;
-      
-      .label {
-        font-size: 14px;
-        opacity: 0.8;
-        margin-bottom: 5px;
-      }
-      
-      .code {
-        font-size: 42px;
-        font-weight: 800;
-        letter-spacing: 4px;
-        color: #ffd04b;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      }
-    }
-
-    .qr-hint {
-      font-size: 14px;
-      opacity: 0.8;
-    }
-
-    .stats-section {
-      margin-top: 30px;
-      padding-top: 30px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-
-      :deep(.el-progress) {
-        margin-bottom: 20px;
-      }
-
-      .progress-content {
-        .progress-value {
-          font-size: 36px;
-          font-weight: 700;
-          color: #67c23a;
-        }
-        .progress-label {
-          font-size: 14px;
-          color: rgba(255,255,255,0.7);
-        }
-      }
-
-      .stats-detail {
-        display: flex;
-        justify-content: center;
-        gap: 40px;
-
-        .stat-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-
-          .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            &.total { color: #409eff; }
-            &.pending { color: #e6a23c; }
-          }
-
-          .stat-label {
-            font-size: 12px;
-            opacity: 0.7;
-          }
-        }
-      }
-    }
-
-    .recent-checkins {
-      margin-top: 24px;
-      text-align: left;
-      background: rgba(255,255,255,0.05);
-      border-radius: 8px;
-      padding: 12px;
-
-      h4 {
-        margin: 0 0 12px;
-        font-size: 14px;
-        opacity: 0.9;
-      }
-
-      .recent-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-
-        &:last-child { border-bottom: none; }
-
-        .name {
-          flex: 1;
-          font-size: 13px;
-        }
-
-        .time {
-          font-size: 12px;
-          opacity: 0.6;
-        }
-      }
-    }
-  }
-
-  // 右侧列表
-  .manual-card {
-    border-radius: 12px;
-    height: 100%;
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      .header-left {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        .title {
-          font-weight: 600;
-          font-size: 15px;
-        }
-      }
-    }
-  }
-
-  .volunteer-cell {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-
-    .info {
-      .name {
-        font-weight: 600;
-        font-size: 14px;
-      }
-      .student-id {
-        font-size: 12px;
-        color: var(--el-text-color-secondary);
-      }
-    }
-  }
-
-  .text-muted {
-    color: var(--el-text-color-placeholder);
-  }
-
-  .text-success {
-    color: var(--el-color-success);
+  .activity-title {
     font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.5px;
+  }
+  .activity-subtitle {
+    font-size: 12px;
+    opacity: 0.8;
+    margin: 4px 0 0;
+  }
+
+  .stats-pill {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 100px;
+    backdrop-filter: blur(10px);
+    .count { font-size: 24px; font-weight: 800; }
+    .total { font-size: 14px; opacity: 0.8; margin-left: 2px; }
+  }
+
+  .progress-container {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    overflow: hidden;
+    .progress-bar {
+      height: 100%;
+      background: #fff;
+      transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+  }
+}
+
+/* 2. Hub Section */
+.checkin-hub {
+  margin: 20px 16px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.04);
+
+  .hub-tabs {
+    display: flex;
+    background: #F2F2F7;
+    padding: 4px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+
+    .hub-tab-item {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #8E8E93;
+      border-radius: 8px;
+      transition: all 0.3s;
+      &:active { transform: scale(0.96); }
+      &.active {
+        background: #fff;
+        color: #0093E9;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+    }
+  }
+}
+
+.qr-display-mode {
+  text-align: center;
+  .qr-card {
+    padding: 20px;
+    background: #F8F9FA;
+    border-radius: 16px;
+    display: inline-block;
+    .qr-code { margin: 0 auto; }
+    .qr-placeholder { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #0093E9; }
+  }
+  .refresh-hint {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: #8E8E93;
+    font-size: 12px;
+    .el-icon { animation: rotate 2s linear infinite; }
+  }
+}
+
+@keyframes rotate { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+
+.backup-code-zone {
+  margin-top: 24px;
+  .label { font-size: 12px; color: #8E8E93; text-transform: uppercase; letter-spacing: 1px; }
+  .code-digits {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+    .digit {
+      width: 40px; height: 50px;
+      background: #F2F2F7;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 800; color: #1C1C1E;
+    }
+  }
+}
+
+.camera-scan-mode {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  height: 300px;
+  background: #000;
+
+  .scanner-box { width: 100%; height: 100%; }
+
+  .scan-overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+
+    .scan-frame {
+      width: 200px; height: 200px;
+      position: relative;
+      .corner { position: absolute; width: 20px; height: 20px; border: 4px solid #0093E9; }
+      .tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+      .tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+      .bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+      .br { bottom: 0; right: 0; border-left: none; border-top: none; }
+      
+      .scan-line {
+        position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+        background: linear-gradient(to right, transparent, #0093E9, transparent);
+        box-shadow: 0 0 10px #0093E9;
+        animation: scanLineMove 2.5s infinite linear;
+      }
+    }
+    .scan-tips { color: #fff; font-size: 12px; margin-top: 20px; background: rgba(0,0,0,0.5); padding: 4px 12px; border-radius: 20px; }
+  }
+}
+
+@keyframes scanLineMove { 0% { top: 0; } 100% { top: 100%; } }
+
+/* 3. Management Zone */
+.management-zone {
+  margin: 0 16px;
+  .custom-tabs :deep(.el-tabs__header) {
+    border-bottom: none;
+    margin-bottom: 12px;
+  }
+  .custom-tabs :deep(.el-tabs__nav) {
+    width: 100%;
+    .el-tabs__item { flex: 1; text-align: center; height: 44px; font-size: 16px; font-weight: 700; color: #8E8E93; }
+    .el-tabs__item.is-active { color: #0093E9; }
+    .el-tabs__active-bar { background-color: #0093E9; height: 3px; border-radius: 3px; }
+  }
+}
+
+.list-wrapper {
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.user-card {
+  background: #fff;
+  padding: 14px 16px;
+  border-radius: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+
+  .user-info {
+    display: flex; align-items: center; gap: 12px;
+    .text { display: flex; flex-direction: column; }
+    .name { font-size: 16px; font-weight: 700; color: #1C1C1E; }
+    .sid { font-size: 12px; color: #8E8E93; }
+    .time { font-size: 12px; color: #34C759; font-weight: 600; }
+  }
+
+  .action-btn {
+    padding: 8px 16px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    transition: all 0.2s;
+    &:active { transform: scale(0.92); }
+    
+    &.confirm { background: #0093E9; color: #fff; box-shadow: 0 4px 12px rgba(0,147,233,0.2); }
+    &.rollback { background: #F2F2F7; color: #FF3B30; }
+  }
+
+  &.done { border-left: 4px solid #34C759; }
+}
+
+/* 4. Activity Selector */
+.activity-selector {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(15px);
+  padding: 10px 24px;
+  border-radius: 100px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; color: #0093E9;
+  z-index: 100;
+  border: 1px solid rgba(0, 147, 233, 0.1);
+  &:active { transform: translateX(-50%) scale(0.95); }
+}
+
+/* 针对 PC 端的样式覆盖 */
+@media (min-width: 768px) {
+  .checkin-container {
+    position: relative;
+  }
+  .activity-selector {
+    /* 1. PC 端高阶居中布局 (参照用户要求：宽大、剔透) */
+    position: absolute;
+    top: 28px; /* 调整高度使其在蓝色页眉中垂直居中 */
+    left: 50%;
+    transform: translateX(-50%) !important;
+    bottom: auto !important;
+    z-index: 1000;
+    
+    /* 2. 极致玻璃态：大尺寸、柔和阴影、高模糊 */
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    height: 44px !important;
+    min-width: 320px !important; /* 加宽后的胶囊感更高级 */
+    padding: 0 40px !important;
+    border-radius: 22px !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    
+    /* 3. 解决“内闪”问题：限定 transition 属性而非 all */
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.3s ease, 
+                box-shadow 0.4s ease !important;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.18) !important;
+      border-color: rgba(255, 255, 255, 0.4) !important;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+      color: #fff !important;
+    }
+    
+    &:active {
+      background: rgba(255, 255, 255, 0.12) !important;
+      /* PC 端移除 scale 以保证交互稳定性 */
+      transform: translateX(-50%) !important;
+    }
+  }
+}
+
+.drawer-list {
+  padding: 10px 0;
+  .drawer-item {
+    padding: 16px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 0.5px solid rgba(0,0,0,0.05);
+    .title { font-size: 16px; color: #1C1C1E; }
+    &.active { .title { color: #0093E9; font-weight: 700; } .el-icon { color: #0093E9; } }
   }
 }
 </style>

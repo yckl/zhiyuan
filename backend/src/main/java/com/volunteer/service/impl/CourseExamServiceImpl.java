@@ -32,13 +32,10 @@ public class CourseExamServiceImpl implements CourseExamService {
     private final CourseQuestionMapper questionMapper;
     private final CourseExamRecordMapper examRecordMapper;
     private final VolunteerMapper volunteerMapper;
-    private final PointsRecordMapper pointsRecordMapper;
     private final CourseProgressMapper courseProgressMapper;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 默认抽题数量
-    private static final int DEFAULT_QUESTION_COUNT = 10;
     // 每题分值
     private static final int SCORE_PER_QUESTION = 10;
 
@@ -61,8 +58,7 @@ public class CourseExamServiceImpl implements CourseExamService {
 
     /**
      * 生成试卷
-     * 随机抽取题目，返回不含正确答案的试卷
-     * 前置条件：必须完成课程学习（进度>=80%）
+     * 使用全局共享的3道标准题目（courseId=0），固定顺序、固定选项
      */
     @Override
     public ExamPaperVO generateExamPaper(Long courseId, int questionCount) {
@@ -71,26 +67,10 @@ public class CourseExamServiceImpl implements CourseExamService {
             throw new RuntimeException("课程不存在");
         }
 
-        // 检查课程学习进度（防止刷课作弊）
-        Volunteer volunteer = getCurrentVolunteer();
-        if (volunteer != null) {
-            CourseProgress progress = courseProgressMapper.findByVolunteerAndCourse(volunteer.getId(), courseId);
-            if (progress == null || progress.getProgress() < CourseProgress.MIN_PROGRESS_FOR_EXAM) {
-                int currentProgress = progress != null ? progress.getProgress() : 0;
-                throw new RuntimeException(String.format(
-                        "请先完成课程学习（当前进度: %d%%，需要达到 %d%%）",
-                        currentProgress, CourseProgress.MIN_PROGRESS_FOR_EXAM));
-            }
-        }
-
-        if (questionCount <= 0) {
-            questionCount = DEFAULT_QUESTION_COUNT;
-        }
-
-        // 随机抽取题目
-        List<CourseQuestion> questions = questionMapper.getRandomQuestions(courseId, questionCount);
+        // 获取全局共享题目（3道标准题）
+        List<CourseQuestion> questions = questionMapper.getSharedQuestions();
         if (questions.isEmpty()) {
-            throw new RuntimeException("该课程暂无题目");
+            throw new RuntimeException("暂无题目，请联系管理员");
         }
 
         // 构建试卷VO（不含答案）
@@ -99,7 +79,7 @@ public class CourseExamServiceImpl implements CourseExamService {
         paper.setCourseName(course.getTitle());
         paper.setTotalScore(questions.size() * SCORE_PER_QUESTION);
         paper.setPassScore(CourseExamRecord.PASS_SCORE);
-        paper.setTimeLimit(30); // 30分钟
+        paper.setTimeLimit(10); // 10分钟
 
         List<ExamPaperVO.QuestionVO> questionVOs = new ArrayList<>();
         for (CourseQuestion q : questions) {
@@ -108,6 +88,8 @@ public class CourseExamServiceImpl implements CourseExamService {
             vo.setQuestionType(q.getQuestionType());
             vo.setContent(q.getContent());
             vo.setScore(SCORE_PER_QUESTION);
+            vo.setCorrectAnswer(q.getCorrectAnswer());
+            vo.setExplanation(q.getExplanation());
 
             // 解析选项JSON
             try {
@@ -204,14 +186,15 @@ public class CourseExamServiceImpl implements CourseExamService {
             timeSpent = (int) ((System.currentTimeMillis() - submitDTO.getStartTime()) / 1000);
         }
 
-        // 积分奖励（仅首次通过发放）
+        // 积分奖励（已根据需求移除）
         int pointsReward = 0;
         boolean firstPass = false;
         if (passed && !alreadyPassed) {
-            pointsReward = CourseExamRecord.PASS_REWARD_POINTS;
             firstPass = true;
-            addPoints(volunteer, pointsReward, "课程考试通过奖励");
-            log.info("用户 {} 首次通过课程 {} 考试, 奖励 {} 积分", volunteer.getId(), courseId, pointsReward);
+            log.info("用户 {} 首次通过课程 {} 考试, 课程已标记为完成", volunteer.getId(), courseId);
+
+            // 更新学习进度为 100%
+            updateCourseProgressToCompleted(volunteer.getId(), courseId);
         }
 
         // 保存考试记录
@@ -334,30 +317,157 @@ public class CourseExamServiceImpl implements CourseExamService {
     }
 
     @Override
-    public Course getResumeCourse() {
+    public Map<String, Object> getResumeCourse() {
         Volunteer volunteer = getCurrentVolunteer();
         if (volunteer == null)
             return null;
 
+        Course course = null;
         CourseExamRecord latest = examRecordMapper.findLatestRecord(volunteer.getId());
         if (latest != null) {
-            return courseMapper.selectById(latest.getCourseId());
+            course = courseMapper.selectById(latest.getCourseId());
         }
 
-        // 如果没有考试记录，返回第一条必修课
-        return courseMapper.selectOne(new LambdaQueryWrapper<Course>()
-                .eq(Course::getIsRequired, 1)
-                .eq(Course::getStatus, 1)
-                .last("LIMIT 1"));
+        if (course == null) {
+            // 如果没有考试记录，返回第一条必修课
+            course = courseMapper.selectOne(new LambdaQueryWrapper<Course>()
+                    .eq(Course::getIsRequired, 1)
+                    .eq(Course::getStatus, 1)
+                    .last("LIMIT 1"));
+        }
+
+        if (course == null)
+            return null;
+
+        // 组装带进度的结果
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", course.getId());
+        map.put("title", course.getTitle());
+        map.put("coverImage", course.getCoverImage());
+        map.put("instructor", course.getInstructor());
+
+        // 查询通过状态和进度
+        boolean passed = hasPassedExam(course.getId());
+        map.put("passed", passed);
+
+        int progress = 0;
+        if (passed) {
+            progress = 100;
+        } else {
+            CourseProgress cp = courseProgressMapper.selectOne(new LambdaQueryWrapper<CourseProgress>()
+                    .eq(CourseProgress::getVolunteerId, volunteer.getId())
+                    .eq(CourseProgress::getCourseId, course.getId())
+                    .eq(CourseProgress::getIsDeleted, 0));
+            progress = (cp != null && cp.getProgress() != null) ? cp.getProgress() : 0;
+        }
+        map.put("progress", progress);
+
+        return map;
+    }
+
+    /**
+     * 当用户通过考试时，强制更新学习进度为 100%
+     */
+    private void updateCourseProgressToCompleted(Long volunteerId, Long courseId) {
+        try {
+            CourseProgress progress = courseProgressMapper.selectOne(new LambdaQueryWrapper<CourseProgress>()
+                    .eq(CourseProgress::getVolunteerId, volunteerId)
+                    .eq(CourseProgress::getCourseId, courseId));
+
+            if (progress == null) {
+                progress = new CourseProgress();
+                progress.setVolunteerId(volunteerId);
+                progress.setCourseId(courseId);
+                progress.setProgress(100);
+                progress.setIsCompleted(1);
+                progress.setCompletedTime(LocalDateTime.now());
+                progress.setCreateTime(LocalDateTime.now());
+                progress.setUpdateTime(LocalDateTime.now());
+                progress.setIsDeleted(0);
+                courseProgressMapper.insert(progress);
+            } else {
+                progress.setProgress(100);
+                progress.setIsCompleted(1);
+                progress.setCompletedTime(LocalDateTime.now());
+                progress.setUpdateTime(LocalDateTime.now());
+                courseProgressMapper.updateById(progress);
+            }
+        } catch (Exception e) {
+            log.error("自动更新课程进度失败: volunteerId={}, courseId={}", volunteerId, courseId, e);
+        }
     }
 
     @Override
-    public List<Course> getMandatoryCourses() {
-        return courseMapper.selectList(new LambdaQueryWrapper<Course>()
-                .eq(Course::getIsRequired, 1)
+    public List<Map<String, Object>> getAllCoursesWithStatus() {
+        // 1. 查询所有上架课程
+        List<Course> allCourses = courseMapper.selectList(new LambdaQueryWrapper<Course>()
                 .eq(Course::getStatus, 1)
                 .orderByAsc(Course::getSortOrder)
-                .last("LIMIT 4"));
+                .orderByDesc(Course::getCreateTime));
+
+        // 2. 获取当前用户的通过记录和学习进度
+        Volunteer volunteer = getCurrentVolunteer();
+        Set<Long> passedCourseIds = new HashSet<>();
+        Map<Long, Integer> progressMap = new HashMap<>();
+
+        if (volunteer != null) {
+            // 查询通过的课程
+            List<CourseExamRecord> passedRecords = examRecordMapper.selectList(
+                    new LambdaQueryWrapper<CourseExamRecord>()
+                            .eq(CourseExamRecord::getVolunteerId, volunteer.getId())
+                            .eq(CourseExamRecord::getPassed, 1)
+                            .eq(CourseExamRecord::getIsDeleted, 0));
+            for (CourseExamRecord r : passedRecords) {
+                passedCourseIds.add(r.getCourseId());
+            }
+
+            // 查询学习进度
+            List<CourseProgress> progressList = courseProgressMapper.selectList(
+                    new LambdaQueryWrapper<CourseProgress>()
+                            .eq(CourseProgress::getVolunteerId, volunteer.getId())
+                            .eq(CourseProgress::getIsDeleted, 0));
+            for (CourseProgress p : progressList) {
+                progressMap.put(p.getCourseId(), p.getProgress() != null ? p.getProgress() : 0);
+            }
+        }
+
+        // 3. 组装结果
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Course c : allCourses) {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", c.getId());
+            map.put("title", c.getTitle());
+            map.put("coverImage", c.getCoverImage());
+            map.put("category", c.getCategory());
+            map.put("instructor", c.getInstructor());
+            map.put("summary", c.getSummary());
+            map.put("creditHours", c.getCreditHours());
+            map.put("difficulty", c.getDifficulty());
+            map.put("viewCount", c.getViewCount());
+            map.put("duration", c.getDuration());
+
+            // courseType: 基于 isRequired 字段，null 时用 id % 3 确定性分配
+            boolean isReq;
+            if (c.getIsRequired() != null) {
+                isReq = c.getIsRequired() == 1;
+            } else {
+                isReq = c.getId() % 3 != 0; // 约 2/3 必修，1/3 选修
+            }
+            map.put("courseType", isReq ? "required" : "elective");
+            map.put("isRequired", isReq ? 1 : 0);
+
+            // passed: 是否通过考试
+            boolean passed = passedCourseIds.contains(c.getId());
+            map.put("passed", passed);
+
+            // progress: 学习进度百分比（通过的课程直接100%）
+            int progress = passed ? 100 : progressMap.getOrDefault(c.getId(), 0);
+            map.put("progress", progress);
+
+            result.add(map);
+        }
+
+        return result;
     }
 
     @Override
@@ -392,30 +502,6 @@ public class CourseExamServiceImpl implements CourseExamService {
         }
 
         return user.equals(correct);
-    }
-
-    /**
-     * 增加用户积分
-     */
-    private void addPoints(Volunteer volunteer, int points, String description) {
-        int newBalance = (volunteer.getAvailablePoints() != null ? volunteer.getAvailablePoints() : 0) + points;
-        int newTotal = (volunteer.getTotalPoints() != null ? volunteer.getTotalPoints() : 0) + points;
-
-        volunteer.setAvailablePoints(newBalance);
-        volunteer.setTotalPoints(newTotal);
-        volunteer.setUpdateTime(LocalDateTime.now());
-        volunteerMapper.updateById(volunteer);
-
-        PointsRecord record = new PointsRecord();
-        record.setVolunteerId(volunteer.getId());
-        record.setPoints(points);
-        record.setBalance(newBalance);
-        record.setType(PointsRecord.Type.ACTIVITY);
-        record.setDescription(description);
-        record.setCreateTime(LocalDateTime.now());
-        record.setUpdateTime(LocalDateTime.now());
-        record.setIsDeleted(0);
-        pointsRecordMapper.insert(record);
     }
 
     /**
