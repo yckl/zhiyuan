@@ -85,7 +85,16 @@ public class SecurityConfig {
                                                 // 放行公开接口（首页统计、分类列表、活动列表、公告列表）
                                                 .requestMatchers("/statistics/index", "/category/list",
                                                                 "/activity/list", "/activity/{id}",
+                                                                "/activity/{id}/participants",
                                                                 "/notice/list", "/notice/{id}", "/banner/list")
+                                                .permitAll()
+                                                // 放行系统公开接口
+                                                .requestMatchers("/system/config").permitAll()
+                                                // 放行评论公开接口
+                                                .requestMatchers("/comment/list", "/comment/count", "/comment/rating")
+                                                .permitAll()
+                                                // 放行推荐公开接口
+                                                .requestMatchers("/recommendation/**")
                                                 .permitAll()
                                                 // 放行心得公开接口
                                                 .requestMatchers("/experience/public/list", "/experience/{id}",

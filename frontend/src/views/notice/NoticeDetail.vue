@@ -222,9 +222,9 @@ const handleCollect = async () => {
 }
 
 const handleShare = () => {
-  const url = window.location.href
-  navigator.clipboard?.writeText(url)
-  ElMessage.success('链接已复制到剪贴板')
+  import('@/utils/clipboard').then(({ copyToClipboard }) => {
+    copyToClipboard(window.location.href, '链接已复制到剪贴板')
+  })
 }
 
 const goBack = () => {

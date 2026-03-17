@@ -75,12 +75,12 @@ public class AdminActivityController {
         if (organizerName != null && !organizerName.isBlank()) {
             List<Organizer> orgs = organizerMapper.selectList(new LambdaQueryWrapper<Organizer>()
                     .like(Organizer::getOrgName, organizerName)
-                    .select(Organizer::getId));
+                    .select(Organizer::getUserId)); // 使用 UserId 代替 Id
             if (orgs.isEmpty()) {
-                return Result.success(new Page<>(page, size)); // No matching organizers -> Empty result
+                return Result.success(new Page<>(page, size));
             }
-            List<Long> orgIds = orgs.stream().map(Organizer::getId).toList();
-            query.in(Activity::getOrganizerId, orgIds);
+            List<Long> orgUserIds = orgs.stream().map(Organizer::getUserId).toList();
+            query.in(Activity::getOrganizerId, orgUserIds);
         }
 
         IPage<Activity> activityPage = activityMapper.selectPage(pageParam, query);
@@ -102,8 +102,11 @@ public class AdminActivityController {
             vo.setIsFeatured(act.getIsFeatured());
             vo.setAuditRemark(act.getAuditRemark());
 
-            // Organizer Name
-            Organizer org = organizerMapper.selectById(act.getOrganizerId());
+            // Organizer Name (优先通过 User ID 查询)
+            Organizer org = organizerMapper.selectByUserId(act.getOrganizerId());
+            if (org == null) {
+                org = organizerMapper.selectById(act.getOrganizerId());
+            }
             vo.setOrganizerName(org != null ? org.getOrgName() : "未知组织");
 
             // Category Name
@@ -147,13 +150,11 @@ public class AdminActivityController {
 
         activityMapper.updateById(activity);
 
-        // Notify
-        // Organizer ID in Activity usually refers to the organizer user ID or organizer
-        // profile ID?
-        // Check AdminActivityVO: "Organizer org =
-        // organizerMapper.selectById(act.getOrganizerId());"
-        // Organizer entity usually has a userId?
-        Organizer org = organizerMapper.selectById(activity.getOrganizerId());
+        // Notify organizer (strictly using User ID now)
+        Organizer org = organizerMapper.selectByUserId(activity.getOrganizerId());
+        if (org == null) {
+            org = organizerMapper.selectById(activity.getOrganizerId());
+        }
         if (org != null) {
             sysMessageService.sendMessage(
                     org.getUserId(), // Send to the user account bound to organizer
@@ -191,7 +192,11 @@ public class AdminActivityController {
         activityMapper.updateById(activity);
 
         // Notify organizer about forced offline
-        Organizer org = organizerMapper.selectById(activity.getOrganizerId());
+        Organizer org = organizerMapper.selectByUserId(activity.getOrganizerId());
+        if (org == null) {
+            org = organizerMapper.selectById(activity.getOrganizerId());
+        }
+
         if (org != null && org.getUserId() != null) {
             sysMessageService.sendMessage(
                     org.getUserId(),

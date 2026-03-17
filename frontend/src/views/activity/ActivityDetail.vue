@@ -109,17 +109,23 @@
           </div>
 
           <!-- 参与者头像墙 -->
-          <div class="section-block" v-if="mockParticipants.length">
+          <div class="section-block" v-if="realParticipants.length">
             <h3 class="section-heading">已报名参与</h3>
             <div class="avatar-wall">
-              <el-avatar
-                v-for="(p, idx) in mockParticipants.slice(0, 8)"
+              <el-tooltip
+                v-for="(p, idx) in realParticipants.slice(0, 8)"
                 :key="idx"
-                :size="36"
-                :style="{ background: p.color }"
-              >{{ p.name.charAt(0) }}</el-avatar>
-              <span class="avatar-more" v-if="(activity.currentParticipants || 0) > 8">
-                +{{ (activity.currentParticipants || 0) - 8 }}
+                :content="p.name"
+                placement="top"
+              >
+                <el-avatar
+                  :size="36"
+                  :src="getImageUrl(p.avatar)"
+                  :style="{ background: getRandomColor(p.name) }"
+                >{{ p.name.charAt(0) }}</el-avatar>
+              </el-tooltip>
+              <span class="avatar-more" v-if="realParticipants.length > 8">
+                +{{ realParticipants.length - 8 }}
               </span>
             </div>
           </div>
@@ -291,11 +297,11 @@
                   </div>
 
                   <!-- 头像墙 -->
-                  <div class="avatar-wall-container" v-if="mockParticipants.length">
-                    <div class="avatar-wall-title">已有 {{ activity.currentParticipants || 0 }} 人报名参与</div>
+                  <div class="avatar-wall-container" v-if="realParticipants.length">
+                    <div class="avatar-wall-title">已有 {{ realParticipants.length }} 人报名参与</div>
                     <div class="avatar-scroll-wrapper">
-                      <div class="avatar-item" v-for="(p, idx) in mockParticipants.slice(0, 15)" :key="idx">
-                        <el-avatar :size="40" :style="{ background: p.color }">{{ p.name.charAt(0) }}</el-avatar>
+                      <div class="avatar-item" v-for="(p, idx) in realParticipants.slice(0, 15)" :key="idx">
+                        <el-avatar :size="40" :src="getImageUrl(p.avatar)" :style="{ background: getRandomColor(p.name) }">{{ p.name.charAt(0) }}</el-avatar>
                         <span class="avatar-name">{{ p.name }}</span>
                       </div>
                     </div>
@@ -429,6 +435,18 @@ const progressColors = [
   { color: '#f56c6c', percentage: 100 }
 ]
 
+const realParticipants = ref<any[]>([])
+
+const getRandomColor = (name: string) => {
+  const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00BFA6', '#626aef', '#ff69b4']
+  if (!name) return colors[0]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return colors[Math.abs(hash) % colors.length]
+}
+
 const isLoggedIn = computed(() => !!localStorage.getItem('token'))
 
 const isVolunteer = computed(() => {
@@ -447,6 +465,10 @@ const canRegister = computed(() => {
   if (hasRegistered.value) return false
   if (activity.value.status !== 2 && activity.value.status !== 3) return false
   
+  // 检查报名开始时间
+  const regStart = activity.value.registerStart
+  if (regStart && new Date(regStart) > new Date()) return false
+
   const deadline = activity.value.registerEnd || activity.value.deadline
   if (deadline && new Date(deadline) < new Date()) return false
   
@@ -479,6 +501,11 @@ const registerBtnText = computed(() => {
   if (!isLoggedIn.value) return '登录并报名'
   if (!isVolunteer.value) return '仅志愿账号可报名'
   if (hasRegistered.value) return '已报名'
+  
+  // 检查报名开启时间
+  const regStart = activity.value.registerStart
+  if (regStart && new Date(regStart) > new Date()) return '报名尚未开始'
+
   if (activity.value.status === 3) return '活动进行中'
   if (activity.value.status === 4) return '活动已结束'
   if (activity.value.status === 5) return '活动已取消'
@@ -632,17 +659,22 @@ const handleShare = () => {
   if (navigator.share) {
     navigator.share({ title: activity.value.title, url: window.location.href })
   } else {
-    navigator.clipboard?.writeText(window.location.href)
-    ElMessage.success('链接已复制')
+    import('@/utils/clipboard').then(({ copyToClipboard }) => {
+      copyToClipboard(window.location.href, '链接已复制')
+    })
   }
 }
 
-const mockParticipants = computed(() => {
-  const names = ['张三', '李四', '王五', '赵六', '孙七', '钱八']
-  const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#00BFA6']
-  const count = Math.min(activity.value.currentParticipants || 5, names.length)
-  return names.slice(0, count).map((name, i) => ({ name, color: colors[i] }))
-})
+const fetchParticipants = async () => {
+  try {
+    const res = await request.get(`/activity/${route.params.id}/participants`)
+    if (res.code === 200) {
+      realParticipants.value = res.data || []
+    }
+  } catch (e) {
+    console.debug('获取参与者列表失败')
+  }
+}
 
 
 const recommendedActivities = ref<any[]>([])
@@ -661,6 +693,7 @@ const fetchRecommendations = async () => {
 onMounted(() => {
   fetchActivity()
   fetchRecommendations()
+  fetchParticipants()
   
   // 仅在已登录状态下调用权限相关的接口，避免游客访问时触发 401 拦截
   if (isLoggedIn.value) {

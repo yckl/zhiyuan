@@ -465,8 +465,8 @@ const goUseCard = (item: BackpackItem) => {
 
 const copyCode = (code: string) => {
   if (!code) return
-  navigator.clipboard.writeText(code).then(() => {
-    ElMessage.success('核销码已复制到剪贴板')
+  import('@/utils/clipboard').then(({ copyToClipboard }) => {
+    copyToClipboard(code, '核销码已复制到剪贴板')
   })
 }
 
@@ -542,6 +542,7 @@ const handleResize = () => {
     line-height: 1;
   }
 
+  .count-unit {
     color: rgba(255, 255, 255, 0.85);
     letter-spacing: 0.5px;
   }

@@ -299,7 +299,7 @@ const statItems = computed(() => [
 
 // ================== 宫格菜单 ==================
 const menuItems = computed(() => [
-  { label: '我的活动', icon: markRaw(Calendar), bg: 'linear-gradient(135deg, #54A0FF, #2E86DE)', action: () => router.push('/user/my-activity'), badge: 0 },
+  { label: '我的活动', icon: markRaw(Calendar), bg: 'linear-gradient(135deg, #54A0FF, #2E86DE)', action: () => router.push('/my-activities'), badge: 0 },
   { label: '志愿记录', icon: markRaw(Timer), bg: 'linear-gradient(135deg, #00CEC9, #00B894)', action: () => router.push('/user/volunteer-record'), badge: 0 },
   { label: '荣誉证书', icon: markRaw(Trophy), bg: 'linear-gradient(135deg, #FFA502, #E67E22)', action: () => router.push('/profile/honor'), badge: 0 },
   { label: '我的背包', icon: markRaw(Box), bg: 'linear-gradient(135deg, #A29BFE, #6C5CE7)', action: () => router.push('/mall/backpack'), badge: 0 },

@@ -315,23 +315,19 @@ public class RegistrationServiceImpl implements RegistrationService {
 
         Integer oldStatus = registration.getStatus();
 
-        // 只有从 待审核(0) 变为 已通过(1) 时，人数加一
+        // 逻辑修正：currentParticipants 在 register() 时已经 increment 处理了（占用名额）
+        // 如果审核通过，不需要再次增加。
+        // 如果审核拒绝，必须扣减回来。
         if (ActivityRegistration.STATUS_REGISTERED.equals(oldStatus) &&
-                ActivityRegistration.STATUS_CONFIRMED.equals(status)) {
-            activity.setCurrentParticipants(activity.getCurrentParticipants() + 1);
-            activity.setUpdateTime(LocalDateTime.now());
-            activityMapper.updateById(activity);
+                ActivityRegistration.STATUS_REJECTED.equals(status)) {
+            activityMapper.decrementParticipants(activity.getId());
         }
-        // 只有从 已通过(1) 或 已签到(2) 变为 已拒绝/已取消 时，人数减一 (支持撤销操作，如果有的话)
-        else if (oldStatus >= ActivityRegistration.STATUS_CONFIRMED &&
+        // 如果之前是已通过状态，现在变更为已拒绝/已取消，也需要扣减
+        else if (oldStatus != null && oldStatus >= ActivityRegistration.STATUS_CONFIRMED &&
                 status > ActivityRegistration.STATUS_CONFIRMED &&
                 status != ActivityRegistration.STATUS_SIGNED_IN &&
                 status != ActivityRegistration.STATUS_COMPLETED) {
-            if (activity.getCurrentParticipants() > 0) {
-                activity.setCurrentParticipants(activity.getCurrentParticipants() - 1);
-                activity.setUpdateTime(LocalDateTime.now());
-                activityMapper.updateById(activity);
-            }
+            activityMapper.decrementParticipants(activity.getId());
         }
 
         registration.setStatus(status);

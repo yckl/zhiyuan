@@ -107,9 +107,9 @@ public class AdminOrganizerController {
                 vo.setStatus(0); // Default unknown/disabled
             }
 
-            // Get Activity Count
+            // Get Activity Count (使用 User ID 匹配)
             Long count = activityMapper.selectCount(new LambdaQueryWrapper<Activity>()
-                    .eq(Activity::getOrganizerId, org.getId())
+                    .eq(Activity::getOrganizerId, org.getUserId())
                     .eq(Activity::getIsDeleted, 0));
             vo.setActivityCount(count);
 

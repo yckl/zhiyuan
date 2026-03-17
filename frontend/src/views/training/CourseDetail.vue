@@ -670,8 +670,9 @@ const handleShare = () => {
   if (navigator.share) {
     navigator.share({ title: course.value.title, url: window.location.href })
   } else {
-    navigator.clipboard?.writeText(window.location.href)
-    ElMessage.success('链接已复制')
+    import('@/utils/clipboard').then(({ copyToClipboard }) => {
+      copyToClipboard(window.location.href, '详情链接已复制')
+    })
   }
 }
 

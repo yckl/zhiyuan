@@ -62,15 +62,19 @@
         <!-- 摄像头扫描模式 -->
         <div v-else class="camera-scan-mode">
           <div id="reader" class="scanner-box"></div>
-          <div class="scan-overlay">
-            <div class="scan-frame">
-              <div class="corner tl"></div>
-              <div class="corner tr"></div>
-              <div class="corner bl"></div>
-              <div class="corner br"></div>
-              <div class="scan-line"></div>
-            </div>
-            <p class="scan-tips">请将学生出示的二维码置于框内</p>
+          <div class="scan-frame">
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+            <div class="scan-line"></div>
+          </div>
+          <p class="scan-tips">请将学生出示的二维码置于框内</p>
+          <div class="fallback-upload">
+            <label class="upload-btn">
+              <el-icon><Picture /></el-icon> 从相册选择二维码
+              <input type="file" accept="image/*" @change="handleFileUpload" style="display: none;" />
+            </label>
           </div>
         </div>
       </div>
@@ -148,7 +152,7 @@
 import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'
 import { request } from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, Refresh, Check, Menu } from '@element-plus/icons-vue'
+import { Loading, Refresh, Check, Menu, Picture } from '@element-plus/icons-vue'
 import QrcodeVue from 'qrcode.vue'
 import { Html5QrcodeScanner } from 'html5-qrcode'
 import dayjs from 'dayjs'
@@ -323,11 +327,53 @@ const onScanSuccess = async (decodedText: string) => {
         ElMessage.error(e.response?.data?.message || '核销失败')
       }
     }
+  } else {
+    ElMessage.error('无法识别的二维码格式')
   }
 }
 
-const onScanFailure = (error: any) => {
+const onScanFailure = () => {
   // 静默失败
+}
+
+let isProcessingFile = false
+import { Html5Qrcode } from 'html5-qrcode'
+const handleFileUpload = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file || isProcessingFile) return
+
+  try {
+    isProcessingFile = true
+    const elId: string = scanner ? scanner.elementId : "reader"
+    
+    // Stop continuous scanner if running
+    if (scanner && typeof scanner.getState === 'function' && scanner.getState() === 2) { // 2 = SCANNING
+        await scanner.stop()
+    }
+
+    const html5QrCode = new Html5Qrcode(elId as string)
+    const decodedText = await html5QrCode.scanFile(file, true)
+    
+    // Call the success handler
+    await onScanSuccess(decodedText)
+  } catch (errorObj: any) {
+    console.error('File scan error:', errorObj)
+    const errMsg = typeof errorObj === 'string' ? errorObj : (errorObj?.message || '')
+    ElMessage.error(errMsg.includes('No QR code found') ? '未找到二维码' : '解析图片失败')
+    
+    // If we stopped the scanner, restart it
+    if (activeHubTab.value === 'scan') {
+      try {
+        if (!scanner || (typeof scanner.getState === 'function' && scanner.getState() !== 2)) {
+          initScanner()
+        }
+      } catch(e) {}
+    }
+  } finally {
+      isProcessingFile = false;
+      // Reset input value so same file can be selected again
+      (event.target as HTMLInputElement).value = '';
+  }
 }
 
 // 7. 辅助函数
@@ -516,7 +562,33 @@ onUnmounted(() => {
   }
 }
 
-@keyframes scanLineMove { 0% { top: 0; } 100% { top: 100%; } }
+  @keyframes scanLineMove { 0% { top: 0; } 100% { top: 100%; } }
+
+  .fallback-upload {
+    margin-top: 25px;
+    pointer-events: auto; /* Re-enable pointer events inside the overlay */
+    z-index: 10;
+    
+    .upload-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s;
+      
+      &:active {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(0.96);
+      }
+    }
+  }
 
 /* 3. Management Zone */
 .management-zone {

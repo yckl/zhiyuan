@@ -32,7 +32,6 @@
         </el-result>
       </div>
 
-    <!-- 扫描扫描装饰框 (仅在活跃时显示) -->
       <div class="scan-overlay" v-if="!errorMsg && !isProcessing">
         <div class="scan-box">
           <div class="scan-line"></div>
@@ -43,6 +42,12 @@
         </div>
         <div class="tip-container">
           <p class="tip">将二维码对准中心框，即可自动签到</p>
+        </div>
+        <div class="fallback-upload">
+          <label class="upload-btn">
+            <el-icon><Picture /></el-icon> 从相册选择二维码
+            <input type="file" accept="image/*" @change="handleFileUpload" style="display: none;" />
+          </label>
         </div>
       </div>
       
@@ -59,7 +64,7 @@
 import { onMounted, onUnmounted, ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, Picture } from '@element-plus/icons-vue'
 import { Html5Qrcode } from 'html5-qrcode'
 import { request } from '@/utils/request'
 
@@ -235,6 +240,39 @@ const handleBack = () => {
   stopCamera().then(() => router.back())
 }
 
+const handleFileUpload = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  try {
+    isProcessing.value = true
+    // If scanning, stop it first
+    if (html5QrCode && html5QrCode.isScanning) {
+      await html5QrCode.stop()
+    }
+    
+    // Create new instance if needed, or use existing to scan file
+    if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("reader")
+    }
+    const decodedText = await html5QrCode.scanFile(file, true)
+    
+    // The scanSuccess function expects scanning to be active, so reset isProcessing and call it
+    isProcessing.value = false
+    await onScanSuccess(decodedText)
+  } catch (err: any) {
+    console.error('File scan error:', err)
+    isProcessing.value = false
+    ElMessage.error(err === 'No QR code found' ? '未找到二维码' : '解析图片失败')
+    
+    // Resume camera if possible
+    initScanner()
+  } finally {
+      // Reset input value so same file can be selected again
+      (event.target as HTMLInputElement).value = ''
+  }
+}
+
 onMounted(() => {
   initScanner()
 })
@@ -297,11 +335,24 @@ onUnmounted(() => {
         display: none !important; opacity: 0; pointer-events: none; 
     }
     
-    :deep(video) { 
-        width: 100% !important; 
-        height: 100% !important; 
-        object-fit: cover !important; 
-    }
+  /* 隐藏 html5-qrcode 自带的遮罩和边框，使用我们自定义的 */
+:deep(#reader__scan_region) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  canvas {
+    display: none !important; /* 隐藏视频流上的定位框 */
+  }
+}
+
+:deep(#reader__dashboard) {
+  display: none !important; /* 隐藏库自带的控制和提示 */
+}
+  :deep(video) { 
+    object-fit: cover !important;
+    width: 100% !important; 
+    height: 100% !important; 
   }
 }
 
@@ -356,6 +407,29 @@ onUnmounted(() => {
     border-radius: 20px;
     .tip { color: #fff; font-size: 14px; margin: 0; opacity: 0.9; }
   }
+
+  .fallback-upload {
+    margin-top: 30px;
+    pointer-events: auto; /* Re-enable pointer events inside the overlay */
+    .upload-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      &:active {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(0.96);
+      }
+    }
+  }
 }
 
 @keyframes scanMove {
@@ -396,5 +470,6 @@ onUnmounted(() => {
   justify-content: center;
   z-index: 500;
   backdrop-filter: blur(4px);
+}
 }
 </style>

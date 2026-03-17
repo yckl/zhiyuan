@@ -14,7 +14,7 @@
       <VolunteerMascot ref="mascotRef" />
 
       <div class="register-header">
-        <h1>志愿者注</h1>
+        <h1>{{ appStore.systemConfig.site_name }}注册</h1>
         <p>加入我们，成为光荣的志愿者</p>
       </div>
 
@@ -188,14 +188,16 @@ import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, FormInstance, FormRules } from 'element-plus'
 import { User, Lock, Phone, Message, CreditCard, School, Reading } from '@element-plus/icons-vue'
-import { request } from '@/utils/request'
+import { useAppStore } from '@/stores/app'
 import VolunteerMascot from '@/components/VolunteerMascot.vue'
+import { request } from '@/utils/request'
 
 // 导入背景图片资源，确保 Vite 正确解析
 import pcBg from '@/assets/images/pc-login-bg.jpg'
 import mobileBg from '@/assets/images/mobile-login-bg.jpg'
 
 const router = useRouter()
+const appStore = useAppStore()
 
 const formRef = ref<FormInstance>()
 const loading = ref(false)
@@ -335,6 +337,10 @@ const onPasswordBlur = () => {
   isPasswordFocused = false
   mascotRef.value?.setIdle()
 }
+
+onMounted(() => {
+  appStore.fetchSystemConfig()
+})
 
 </script>
 

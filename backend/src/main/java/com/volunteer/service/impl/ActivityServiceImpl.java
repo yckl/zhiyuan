@@ -206,7 +206,20 @@ public class ActivityServiceImpl implements ActivityService {
         if (activity == null) {
             throw new RuntimeException("活动不存在");
         }
-        return convertToDTO(activity);
+        ActivityDTO dto = convertToDTO(activity);
+
+        // 实时计算已确认的参与人数，确保“数据真实”
+        LambdaQueryWrapper<ActivityRegistration> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ActivityRegistration::getActivityId, id)
+                .in(ActivityRegistration::getStatus,
+                        ActivityRegistration.STATUS_CONFIRMED,
+                        ActivityRegistration.STATUS_SIGNED_IN,
+                        ActivityRegistration.STATUS_COMPLETED)
+                .eq(ActivityRegistration::getIsDeleted, 0);
+        Long realCount = activityRegistrationMapper.selectCount(queryWrapper);
+        dto.setCurrentParticipants(realCount.intValue());
+
+        return dto;
     }
 
     /**
@@ -223,7 +236,12 @@ public class ActivityServiceImpl implements ActivityService {
         BeanUtils.copyProperties(activity, vo);
 
         // 设置状态名称
-        vo.setStatusName(STATUS_MAP.getOrDefault(activity.getStatus(), "未知"));
+        if (activity.getStatus().equals(2) && activity.getRegisterStart() != null
+                && LocalDateTime.now().isBefore(activity.getRegisterStart())) {
+            vo.setStatusName("报名未开始");
+        } else {
+            vo.setStatusName(STATUS_MAP.getOrDefault(activity.getStatus(), "未知"));
+        }
 
         // 查询分类名称
         if (activity.getCategoryId() != null) {
@@ -240,12 +258,12 @@ public class ActivityServiceImpl implements ActivityService {
                 Organizer organizer = null;
                 SysUser user = null;
 
-                // 尝试1: organizerId 可能是 organizer 表的主键 id
-                organizer = organizerMapper.selectById(orgId);
+                // 优先通过 User ID 查询组织者信息
+                organizer = organizerMapper.selectByUserId(orgId);
 
-                // 尝试2: organizerId 可能是 organizer 表的 user_id
+                // 兜底：如果没找到，再尝试作为主键 ID 查询
                 if (organizer == null) {
-                    organizer = organizerMapper.selectByUserId(orgId);
+                    organizer = organizerMapper.selectById(orgId);
                 }
 
                 // 如果找到 Organizer
@@ -314,15 +332,13 @@ public class ActivityServiceImpl implements ActivityService {
         LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
 
         if (StringUtils.hasText(query.getTitle())) {
-            String keyword = query.getTitle().trim().replaceAll("\\s+", "");
-            // Create fuzzy pattern e.g., "AB" -> "A%B" which MyBatis applies as "%A%B%"
-            String fuzzyPattern = String.join("%", keyword.split(""));
+            String keyword = query.getTitle().trim();
             queryWrapper.and(wrapper -> wrapper
-                    .like(Activity::getTitle, fuzzyPattern)
+                    .like(Activity::getTitle, keyword)
                     .or()
-                    .like(Activity::getSummary, fuzzyPattern)
+                    .like(Activity::getSummary, keyword)
                     .or()
-                    .like(Activity::getLocation, fuzzyPattern));
+                    .like(Activity::getLocation, keyword));
         }
         if (query.getCategoryId() != null) {
             queryWrapper.eq(Activity::getCategoryId, query.getCategoryId());
@@ -408,27 +424,45 @@ public class ActivityServiceImpl implements ActivityService {
             log.error("增强活动列表失败", e);
         }
 
-        // 增强逻辑2：计算待审核人数 (Pending Count)
+        // 增强逻辑2：计算各状态人数 (Real-time sync)
         if (!dtoList.isEmpty()) {
             try {
                 List<Long> activityIds = dtoList.stream().map(ActivityDTO::getId).collect(Collectors.toList());
-                QueryWrapper<ActivityRegistration> regWrapper = new QueryWrapper<>();
-                regWrapper.in("activity_id", activityIds)
+                // 1. 待审核人数
+                QueryWrapper<ActivityRegistration> pendingWrapper = new QueryWrapper<>();
+                pendingWrapper.in("activity_id", activityIds)
                         .eq("status", ActivityRegistration.STATUS_REGISTERED)
                         .eq("is_deleted", 0)
                         .select("activity_id", "count(*) as count")
                         .groupBy("activity_id");
 
-                List<Map<String, Object>> counts = activityRegistrationMapper.selectMaps(regWrapper);
-                Map<Long, Integer> countMap = counts.stream().collect(Collectors.toMap(
+                List<Map<String, Object>> pendingCounts = activityRegistrationMapper.selectMaps(pendingWrapper);
+                Map<Long, Integer> pendingCountMap = pendingCounts.stream().collect(Collectors.toMap(
+                        m -> ((Number) m.get("activity_id")).longValue(),
+                        m -> ((Number) m.get("count")).intValue()));
+
+                // 2. 已确认人数 (真实报名人数)
+                QueryWrapper<ActivityRegistration> confirmedWrapper = new QueryWrapper<>();
+                confirmedWrapper.in("activity_id", activityIds)
+                        .in("status", ActivityRegistration.STATUS_CONFIRMED,
+                                ActivityRegistration.STATUS_SIGNED_IN,
+                                ActivityRegistration.STATUS_COMPLETED)
+                        .eq("is_deleted", 0)
+                        .select("activity_id", "count(*) as count")
+                        .groupBy("activity_id");
+
+                List<Map<String, Object>> confirmedCounts = activityRegistrationMapper.selectMaps(confirmedWrapper);
+                Map<Long, Integer> confirmedCountMap = confirmedCounts.stream().collect(Collectors.toMap(
                         m -> ((Number) m.get("activity_id")).longValue(),
                         m -> ((Number) m.get("count")).intValue()));
 
                 for (ActivityDTO dto : dtoList) {
-                    dto.setPendingCount(countMap.getOrDefault(dto.getId(), 0));
+                    dto.setPendingCount(pendingCountMap.getOrDefault(dto.getId(), 0));
+                    // 覆盖数据库冗余字段，确保前端显示的是真实统计
+                    dto.setCurrentParticipants(confirmedCountMap.getOrDefault(dto.getId(), 0));
                 }
             } catch (Exception e) {
-                log.error("计算活动待审核人数失败", e);
+                log.error("同步活动统计数据失败", e);
             }
         }
 
@@ -580,7 +614,12 @@ public class ActivityServiceImpl implements ActivityService {
         ActivityDTO dto = new ActivityDTO();
         BeanUtils.copyProperties(activity, dto);
 
-        dto.setStatusName(STATUS_MAP.getOrDefault(activity.getStatus(), "未知"));
+        if (activity.getStatus().equals(2) && activity.getRegisterStart() != null
+                && LocalDateTime.now().isBefore(activity.getRegisterStart())) {
+            dto.setStatusName("报名未开始");
+        } else {
+            dto.setStatusName(STATUS_MAP.getOrDefault(activity.getStatus(), "未知"));
+        }
 
         if (activity.getCategoryId() != null) {
             ActivityCategory category = categoryMapper.selectById(activity.getCategoryId());
@@ -591,6 +630,9 @@ public class ActivityServiceImpl implements ActivityService {
 
         if (activity.getOrganizerId() != null) {
             Organizer organizer = organizerMapper.selectByUserId(activity.getOrganizerId());
+            if (organizer == null) {
+                organizer = organizerMapper.selectById(activity.getOrganizerId());
+            }
             if (organizer != null) {
                 dto.setOrganizerName(organizer.getOrgName());
             }
@@ -605,18 +647,48 @@ public class ActivityServiceImpl implements ActivityService {
             return java.util.Collections.emptyList();
         }
 
-        String cleanKeyword = keyword.trim().replaceAll("\\s+", "");
-        String fuzzyPattern = String.join("%", cleanKeyword.split(""));
+        String cleanKeyword = keyword.trim();
 
         LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.and(w -> w.like(Activity::getTitle, fuzzyPattern)
-                .or().like(Activity::getSummary, fuzzyPattern)
-                .or().like(Activity::getLocation, fuzzyPattern))
+        queryWrapper.and(w -> w.like(Activity::getTitle, cleanKeyword)
+                .or().like(Activity::getSummary, cleanKeyword)
+                .or().like(Activity::getLocation, cleanKeyword))
                 .eq(Activity::getIsDeleted, 0)
                 .eq(Activity::getStatus, Activity.STATUS_PUBLISHED)
                 .last("LIMIT 10");
         return activityMapper.selectList(queryWrapper).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> getActivityParticipants(Long activityId) {
+        LambdaQueryWrapper<ActivityRegistration> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ActivityRegistration::getActivityId, activityId)
+                .in(ActivityRegistration::getStatus,
+                        ActivityRegistration.STATUS_CONFIRMED,
+                        ActivityRegistration.STATUS_SIGNED_IN,
+                        ActivityRegistration.STATUS_COMPLETED)
+                .eq(ActivityRegistration::getIsDeleted, 0)
+                .orderByDesc(ActivityRegistration::getCreateTime);
+
+        List<ActivityRegistration> registrations = activityRegistrationMapper.selectList(queryWrapper);
+
+        return registrations.stream().map(reg -> {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            Volunteer volunteer = volunteerMapper.selectById(reg.getVolunteerId());
+            if (volunteer != null) {
+                map.put("name", volunteer.getName());
+                map.put("studentId", volunteer.getStudentNo());
+                map.put("college", volunteer.getCollege());
+
+                SysUser user = sysUserMapper.selectById(volunteer.getUserId());
+                if (user != null) {
+                    map.put("avatar", user.getAvatar());
+                }
+            }
+            map.put("status", reg.getStatus());
+            return map;
+        }).collect(Collectors.toList());
     }
 }

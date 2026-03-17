@@ -958,8 +958,7 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0; // 通栏：卡片贴边
-  padding-bottom: 20px;
+  padding-bottom: 80px;
   background: #fff;
 }
 
@@ -986,18 +985,19 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
+  flex-wrap: wrap; // 允许在缩放过大时换行
   gap: 16px;
   margin-bottom: 24px;
   padding: 16px 20px;
   background: #fff;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
+  min-height: 72px; // 保持稳定高度
 }
 
 .filter-left {
   flex: 1;
-  min-width: 0;
+  min-width: 300px; // 确保标签区域不会缩到没法看
 }
 
 .pill-tabs {

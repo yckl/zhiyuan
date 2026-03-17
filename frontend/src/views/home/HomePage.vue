@@ -53,9 +53,9 @@
       :loading="loadingActivities"
       :active-filter="activityFilter"
       @filter-change="(val: string) => activityFilter = val"
-      @join="router.push('/activity')"
-      @nav="(path) => router.push(path)"
-      @more="router.push('/activity')"
+      @join="handleNav('/activity')"
+      @nav="handleNav"
+      @more="handleNav('/activity')"
       @detail="(id) => router.push(`/activity/${id}`)"
     />
 
@@ -69,7 +69,7 @@
             :key="item.label"
             class="quick-card"
             :style="{ animationDelay: `${i * 0.1}s` }"
-            @click="router.push(item.path)"
+            @click="handleNav(item.path)"
           >
             <div class="qc-icon" :style="{ background: item.color }">
               <el-icon :size="28"><component :is="item.icon" /></el-icon>
@@ -149,10 +149,27 @@ import {
   ArrowRight, Reading, Shop, Histogram, Opportunity,
   Calendar, Bell, ChatDotRound, Setting, Clock, Promotion
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import ActivityCard from '@/components/ActivityCard.vue'
 import MobileHome from './MobileHome.vue'
 
+import { useUserStore } from '@/stores/user'
 const router = useRouter()
+const userStore = useUserStore()
+
+// 统一导航处理（处理游客拦截）
+const handleNav = (path: string) => {
+  // 定义需要登录才能访问的资源
+  const privatePaths = ['/feedback', '/profile', '/user/volunteer-record', '/experience/create', '/mall/backpack', '/training/my']
+  const needsAuth = privatePaths.some(p => path.startsWith(p))
+
+  if (needsAuth && !userStore.isLoggedIn) {
+    ElMessage.info('该功能需登录后使用')
+    router.push({ path: '/login', query: { redirect: path } })
+    return
+  }
+  router.push(path)
+}
 
 // ================== 响应式判断 ==================
 const windowWidth = ref(window.innerWidth)

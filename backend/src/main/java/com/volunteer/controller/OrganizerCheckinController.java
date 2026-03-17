@@ -136,6 +136,7 @@ public class OrganizerCheckinController {
                 item.put("signInTime", reg.getSignInTime());
                 item.put("signOutTime", reg.getSignOutTime());
                 item.put("checkedIn", reg.getSignInTime() != null);
+                item.put("status", reg.getStatus());
                 attendeeList.add(item);
             }
 

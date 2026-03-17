@@ -1,4 +1,6 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
+import { useAppStore } from '@/stores/app'
+import { ElMessage } from 'element-plus'
 
 // 路由配置
 const routes: RouteRecordRaw[] = [
@@ -24,7 +26,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'home',
                 name: 'Home',
                 component: () => import('@/views/home/HomePage.vue'),
-                meta: { title: '首页', requiresAuth: false }
+                meta: { title: '首页', requiresAuth: false, roles: ['VOLUNTEER'] }
             },
 
             // ================== 新增：通知公告 ==================
@@ -37,19 +39,19 @@ const routes: RouteRecordRaw[] = [
                         path: 'list',
                         name: 'NoticeList',
                         component: () => import('@/views/notice/NoticeList.vue'),
-                        meta: { title: '公告列表', requiresAuth: false }
+                        meta: { title: '公告列表', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'my',
                         name: 'MessageCenter',
                         component: () => import('@/views/notice/MessageCenter.vue'),
-                        meta: { title: '我的消息' }
+                        meta: { title: '我的消息', requiresAuth: true, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'detail/:id',
                         name: 'NoticeDetail',
                         component: () => import('@/views/notice/NoticeDetail.vue'),
-                        meta: { title: '公告详情', requiresAuth: false, hideTabBar: true }
+                        meta: { title: '公告详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true }
                     }
                 ]
             },
@@ -65,32 +67,32 @@ const routes: RouteRecordRaw[] = [
                         path: 'index',
                         name: 'MallIndex',
                         component: () => import('@/views/mall/MallIndex.vue'),
-                        meta: { title: '商城首页', requiresAuth: false }
+                        meta: { title: '商城首页', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'backpack',
                         name: 'Backpack',
                         component: () => import('@/views/mall/Backpack.vue'),
-                        meta: { title: '我的背包', requiresAuth: true }
+                        meta: { title: '我的背包', requiresAuth: true, roles: ['VOLUNTEER'] }
                     },
 
                     {
                         path: 'checkin',
                         name: 'CheckIn',
                         component: () => import('@/views/mall/CheckIn.vue'),
-                        meta: { title: '每日签到', requiresAuth: false }
+                        meta: { title: '每日签到', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'item/:id',
                         name: 'MallDetail',
                         component: () => import('@/views/mall/MallDetail.vue'),
-                        meta: { title: '商品详情', requiresAuth: false, hideTabBar: true, hideHeader: true }
+                        meta: { title: '商品详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true, hideHeader: true }
                     },
                     {
                         path: '/scan/index',
                         name: 'Scan',
                         component: () => import('@/views/scan/ScanView.vue'),
-                        meta: { title: '扫一扫', hideMenu: true }
+                        meta: { title: '扫一扫', hideMenu: true, requiresAuth: true, roles: ['VOLUNTEER'] }
                     }
                 ]
             },
@@ -105,13 +107,13 @@ const routes: RouteRecordRaw[] = [
                         path: '',
                         name: 'ActivityList',
                         component: () => import('@/views/activity/ActivityList.vue'),
-                        meta: { title: '活动列表', requiresAuth: false }
+                        meta: { title: '活动列表', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: ':id',
                         name: 'ActivityDetail',
                         component: () => import('@/views/activity/ActivityDetail.vue'),
-                        meta: { title: '活动详情', requiresAuth: false, hideTabBar: true, hideHeader: true }
+                        meta: { title: '活动详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true, hideHeader: true }
                     }
                 ]
             },
@@ -126,31 +128,31 @@ const routes: RouteRecordRaw[] = [
                         path: '',
                         name: 'ExperienceList',
                         component: () => import('@/views/experience/ExperienceList.vue'),
-                        meta: { title: '心得列表', requiresAuth: false }
+                        meta: { title: '心得列表', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'plaza',
                         name: 'ExperiencePlaza',
                         component: () => import('@/views/experience/ExperiencePlaza.vue'),
-                        meta: { title: '心得广场', requiresAuth: false }
+                        meta: { title: '心得广场', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: ':id',
                         name: 'ExperienceDetail',
                         component: () => import('@/views/experience/ExperienceDetail.vue'),
-                        meta: { title: '心得详情', requiresAuth: false, hideTabBar: true }
+                        meta: { title: '心得详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true }
                     },
                     {
                         path: 'create',
                         name: 'ExperienceCreate',
                         component: () => import('@/views/experience/ExperiencePublish.vue'),
-                        meta: { title: '发布心得', requiresAuth: true }
+                        meta: { title: '发布心得', requiresAuth: true, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'edit/:id',
                         name: 'ExperienceEditor',
                         component: () => import('@/views/experience/ExperiencePublish.vue'),
-                        meta: { title: '编辑心得', requiresAuth: true }
+                        meta: { title: '编辑心得', requiresAuth: true, roles: ['VOLUNTEER'] }
                     }
                 ]
             },
@@ -160,7 +162,7 @@ const routes: RouteRecordRaw[] = [
                 path: 'feedback',
                 name: 'Feedback',
                 component: () => import('@/views/feedback/FeedbackPage.vue'),
-                meta: { title: '问题反馈', requiresAuth: true }
+                meta: { title: '问题反馈', requiresAuth: true, roles: ['VOLUNTEER'] }
             },
 
             // ================== 新增：培训学院 ==================
@@ -174,97 +176,96 @@ const routes: RouteRecordRaw[] = [
                         path: 'index',
                         name: 'TrainingIndex',
                         component: () => import('@/views/training/TrainingIndex.vue'),
-                        meta: { title: '学院首页', requiresAuth: false }
+                        meta: { title: '学院首页', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'list',
                         name: 'CourseList',
                         component: () => import('@/views/training/CourseList.vue'),
-                        meta: { title: '课程列表', requiresAuth: false }
+                        meta: { title: '课程列表', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'detail/:id',
                         name: 'CourseDetail',
                         component: () => import('@/views/training/CourseDetail.vue'),
-                        meta: { title: '课程详情', requiresAuth: false, hideTabBar: true }
+                        meta: { title: '课程详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true }
                     },
                     {
                         path: 'my',
                         name: 'MyExam',
                         component: () => import('@/views/training/MyExam.vue'),
-                        meta: { title: '我的考试', requiresAuth: true }
+                        meta: { title: '我的考试', requiresAuth: true, roles: ['VOLUNTEER'] }
                     }
                 ]
             },
 
 
-            // ================== 个人中心 (扩展) ==================
             {
                 path: 'profile',
-                meta: { title: '个人中心', requiresAuth: true },
+                meta: { title: '个人中心', requiresAuth: true, roles: ['VOLUNTEER'] },
                 children: [
                     {
                         path: '',
                         name: 'Profile',
                         component: () => import('@/views/profile/ProfilePage.vue'),
-                        meta: { title: '我的资料' }
+                        meta: { title: '我的资料', roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'info',
                         name: 'ProfileInfo',
                         component: () => import('@/views/profile/ProfilePage.vue'),
-                        meta: { title: '我的资料' }
+                        meta: { title: '我的资料', roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'history',
                         name: 'ProfileHistory',
                         component: () => import('@/views/profile/VolunteerRecord.vue'),
-                        meta: { title: '志愿记录' }
+                        meta: { title: '志愿记录', roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'favorite',
                         name: 'ProfileFavorite',
                         component: () => import('@/views/profile/MyFavorite.vue'),
-                        meta: { title: '我的收藏' }
+                        meta: { title: '我的收藏', roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'honor',
                         name: 'ProfileHonor',
                         component: () => import('@/views/profile/MyHonor.vue'),
-                        meta: { title: '荣誉证书' }
+                        meta: { title: '荣誉证书', roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'stats',
                         name: 'ProfileStats',
                         component: () => import('@/views/profile/DataCenter.vue'),
-                        meta: { title: '数据中心' }
+                        meta: { title: '数据中心', roles: ['VOLUNTEER'] }
                     },
                     {
                         path: 'reviews',
                         name: 'ProfileReviews',
                         component: () => import('@/views/profile/MyReviews.vue'),
-                        meta: { title: '我的评价' }
+                        meta: { title: '我的评价', roles: ['VOLUNTEER'] }
                     }
                 ]
             },
 
             {
-                path: 'user/my-activity',
+                path: 'my-activities',
                 name: 'MyActivities',
                 component: () => import('@/views/profile/MyActivities.vue'),
-                meta: { title: '我的活动', requiresAuth: true }
+                meta: { title: '我的活动', requiresAuth: true, roles: ['VOLUNTEER'] }
             },
             {
                 path: 'user/volunteer-record',
                 name: 'VolunteerRecord',
                 component: () => import('@/views/profile/VolunteerRecord.vue'),
-                meta: { title: '志愿记录', requiresAuth: true }
+                meta: { title: '志愿记录', requiresAuth: true, roles: ['VOLUNTEER'] }
             },
             {
                 path: 'my-experiences',
                 name: 'MyExperiences',
                 component: () => import('@/views/profile/MyExperiences.vue'),
-                meta: { title: '我的心得', requiresAuth: true }
+                meta: { title: '我的心得', requiresAuth: true, roles: ['VOLUNTEER'] }
             },
 
             // 组织者管理路由 (模块化重构)
@@ -481,7 +482,9 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-    document.title = `${to.meta.title || '校园志愿者'} - 校园志愿者管理系统`
+    const appStore = useAppStore()
+    const siteName = appStore.systemConfig.site_name || '校园志愿者系统'
+    document.title = `${to.meta.title || '校园志愿者'} - ${siteName}`
     const token = localStorage.getItem('token')
     const userInfoStr = localStorage.getItem('userInfo')
     const requiresAuth = to.meta.requiresAuth !== false
@@ -511,22 +514,7 @@ router.beforeEach((to, from, next) => {
         to.meta._transition = 'page-fade'
     }
 
-    // 处理根路径和首页的智能跳转
-    if ((to.path === '/' || to.path === '/home') && token && userInfoStr) {
-        try {
-            const userInfo = JSON.parse(userInfoStr)
-            if (userInfo.role === 'ORGANIZER') {
-                next({ path: '/organizer/dashboard' })
-                return
-            } else if (userInfo.role === 'ADMIN') {
-                next({ path: '/admin/dashboard/overview' })
-                return
-            }
-        } catch (e) {
-            console.error('解析用户信息失败:', e)
-        }
-    }
-
+    // 权限校验逻辑
     if (requiresAuth && !token) {
         next({ path: '/login', query: { redirect: to.fullPath } })
         return
@@ -535,6 +523,41 @@ router.beforeEach((to, from, next) => {
     if (token && to.path === '/login') {
         next({ path: '/' })
         return
+    }
+
+    // ========== 新增：角色权限严格检查 ==========
+    if (token && userInfoStr) {
+        try {
+            const userInfo = JSON.parse(userInfoStr)
+            const userRole = userInfo.role // 'VOLUNTEER', 'ORGANIZER', 'ADMIN'
+            const requiredRoles = to.meta.roles as string[]
+
+            // 如果路由定义了需要特定角色，且当前用户角色不在其中
+            if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
+                ElMessage.warning('权限不足，已为您跳转到首页')
+                if (userRole === 'ADMIN') {
+                    next({ path: '/admin/dashboard/overview' })
+                } else if (userRole === 'ORGANIZER') {
+                    next({ path: '/organizer/dashboard' })
+                } else {
+                    next({ path: '/' })
+                }
+                return
+            }
+
+            // 处理根路径和首页的智能跳转（保持原有逻辑，但代码结构更清晰）
+            if (to.path === '/' || to.path === '/home') {
+                if (userRole === 'ORGANIZER') {
+                    next({ path: '/organizer/dashboard' })
+                    return
+                } else if (userRole === 'ADMIN') {
+                    next({ path: '/admin/dashboard/overview' })
+                    return
+                }
+            }
+        } catch (e) {
+            console.error('权限校验解析失败:', e)
+        }
     }
 
     next()

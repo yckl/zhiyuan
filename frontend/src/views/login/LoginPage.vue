@@ -16,7 +16,7 @@
       </div>
 
       <div class="header-section">
-        <h1 class="main-title">校园志愿者系统</h1>
+        <h1 class="main-title">{{ appStore.systemConfig.site_name }}</h1>
         <p class="sub-title">加入我们，成为光荣的志愿者</p>
       </div>
 
@@ -93,6 +93,7 @@ import { ElMessage } from 'element-plus'
 import { View, Hide, Setting } from '@element-plus/icons-vue'
 import VolunteerMascot from '@/components/VolunteerMascot.vue'
 import { useUserStore } from '@/stores/user'
+import { useAppStore } from '@/stores/app'
 import { request } from '@/utils/request'
 
 // 导入背景图片资源，确保 Vite 正确解析
@@ -102,6 +103,7 @@ import mobileBg from '@/assets/images/mobile-login-bg.jpg'
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const appStore = useAppStore()
 const loading = ref(false)
 const showPassword = ref(false)
 const showServerConfig = ref(false)
@@ -152,14 +154,31 @@ const handleLogin = async () => {
     
     ElMessage.success('登录成功')
     
-    // 🚦 记忆回跳逻辑：优先从 query 获取完整的 redirect
+    // 🚦 第一道防线：角色与路径匹配检查 (Defense Line 1)
+    const role = res.data.role
     const redirectPath = route.query.redirect as string
+    
+    // 如果有重定向路径，检查该路径是否允许当前角色访问
     if (redirectPath) {
-      // 如果 redirect 包含多个参数（比如 /activity/1?autoEnroll=true），
-      // router.replace(redirectPath) 在 Vue Router 4 中能很好处理全路径字符串
-      router.replace(redirectPath)
+      // 这里的逻辑改为：通过 router 查找目标路由的 meta 信息（如果可以的话）
+      // 简单起见，我们还是先用路径前缀判断，或者调用 router.resolve
+      const targetRoute = router.resolve(redirectPath)
+      const allowedRoles = targetRoute?.meta?.roles as string[]
+      
+      // 如果目标页面有角色限制，且当前角色不包含在内
+      if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(role)) {
+        console.warn(`Role mismatch: ${role} cannot access ${redirectPath}. Redirecting to dashboard.`)
+        if (role === 'ADMIN') router.replace('/admin/dashboard/overview')
+        else if (role === 'ORGANIZER') router.replace('/organizer/dashboard')
+        else router.replace('/')
+      } else {
+        router.replace(redirectPath)
+      }
     } else {
-      router.replace('/')
+      // 没有任何重定向路径时，根据角色去往首页
+      if (role === 'ADMIN') router.replace('/admin/dashboard/overview')
+      else if (role === 'ORGANIZER') router.replace('/organizer/dashboard')
+      else router.replace('/')
     }
     console.log('User Data:', formData)
   } catch (err) {
@@ -201,6 +220,10 @@ const togglePasswordVisibility = () => {
     showPassword.value ? mascotRef.value?.setPeek() : mascotRef.value?.setFromPeek()
   }
 }
+
+onMounted(() => {
+  appStore.fetchSystemConfig()
+})
 </script>
 
 <style scoped lang="scss">

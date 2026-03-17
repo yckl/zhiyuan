@@ -60,4 +60,9 @@ public interface ActivityService {
      * 获取搜索建议
      */
     java.util.List<ActivityDTO> getSearchSuggestions(String keyword);
+
+    /**
+     * 获取活动已报名参与者
+     */
+    java.util.List<java.util.Map<String, Object>> getActivityParticipants(Long activityId);
 }

@@ -108,6 +108,20 @@ public class ActivityController {
     }
 
     /**
+     * 获取活动已报名参与者（公开信息）
+     */
+    @GetMapping("/{id}/participants")
+    @Operation(summary = "获取活动参与者", description = "获取活动已通过审核的参与者列表")
+    public Result<List<Map<String, Object>>> getActivityParticipants(@PathVariable Long id) {
+        try {
+            return Result.success(activityService.getActivityParticipants(id));
+        } catch (Exception e) {
+            log.error("获取活动参与者失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * 分页查询活动列表
      */
     @GetMapping("/list")

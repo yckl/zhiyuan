@@ -340,8 +340,7 @@ const handleConfirmExchange = async () => {
 }
 
 const handleShare = () => {
-  navigator.clipboard.writeText(window.location.href)
-  ElMessage.success('详情链接已复制')
+  import('@/utils/clipboard').then(({ copyToClipboard }) => {copyToClipboard(window.location.href, '详情链接已复制')})
 }
 
 const goToItem = (id: number) => {

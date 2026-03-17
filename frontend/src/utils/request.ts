@@ -52,13 +52,29 @@ service.interceptors.response.use(
 
         // 如果返回的 code 不是 200，说明有错误
         if (res.code && res.code !== 200) {
+            // [优化] 如果是背景静默请求（如查询未读数），即便报错也不干扰用户
+            const silentEndpoints = ['/message/unreadCount']
+            const isSilent = silentEndpoints.some(url => response.config.url?.includes(url))
+
             // 401: Token 过期或未登录
             if (res.code === 401) {
-                ElMessage.error(res.message || '登录已过期，请重新登录')
-                localStorage.removeItem('token')
-                localStorage.removeItem('userInfo')
-                router.push('/login')
+                const hadToken = !!localStorage.getItem('token')
+
+                if (hadToken && !isSilent) {
+                    ElMessage.error(res.message || '登录已过期，请重新登录')
+                    localStorage.removeItem('token')
+                    localStorage.removeItem('userInfo')
+                    router.push('/login')
+                }
                 return Promise.reject(new Error(res.message || '登录过期'))
+            }
+
+            // 403: 权限不足
+            if (res.code === 403) {
+                if (!isSilent) {
+                    ElMessage.error(res.message || '权限不足')
+                }
+                return Promise.reject(new Error(res.message || '权限不足'))
             }
 
             // 其他业务错误直接显示后端返回的 message
@@ -82,7 +98,7 @@ service.interceptors.response.use(
         if (error.response) {
             const status = error.response.status
 
-            if (status === 401 || status === 403) {
+            if (status === 401) {
                 const hadToken = localStorage.getItem('token')
 
                 // 清除本地过期或无效信息
@@ -95,7 +111,32 @@ service.interceptors.response.use(
                     ElMessage.warning('您的登录已过期，请重新登录')
                 }
 
-                return Promise.reject(new Error('未登录或权限不足'))
+                router.push('/login')
+                return Promise.reject(new Error('登录已过期'))
+            }
+
+            if (status === 403) {
+                const hadToken = localStorage.getItem('token')
+                const isGet = error.config?.method?.toUpperCase() === 'GET'
+
+                // 仅当用户已登录，或者是 POST/PUT/DELETE 等操作时才弹出权限报错
+                if (hadToken || !isGet) {
+                    const userInfoStr = localStorage.getItem('userInfo')
+                    let roleHint = ''
+                    const url = error.config?.url || ''
+                    const isVolunteerApi = url.includes('/mall/') || url.includes('/experience/') || url.includes('/training/') || url.includes('/notice/')
+
+                    if (userInfoStr && isVolunteerApi) {
+                        const userInfo = JSON.parse(userInfoStr)
+                        if (userInfo.role === 'ADMIN') roleHint = '（管理员账号无法访问此功能）'
+                        else if (userInfo.role === 'ORGANIZER') roleHint = '（组织者账号无法访问此功能）'
+                    }
+
+                    const backendMsg = error.response.data?.message
+                    ElMessage.error(backendMsg || `权限不足${roleHint}`)
+                }
+
+                return Promise.reject(new Error('权限不足'))
             }
 
             switch (status) {

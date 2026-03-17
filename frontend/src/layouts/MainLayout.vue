@@ -6,48 +6,55 @@
       <div class="mobile-header-left">
         <el-icon v-if="canGoBack" class="back-btn" @click="router.back()"><ArrowLeft /></el-icon>
       </div>
-      <h1 class="mobile-header-title">{{ route.meta.title || '首页' }}</h1>
+      <h1 class="mobile-header-title">{{ route.path === '/home' || route.path === '/' ? appStore.systemConfig.site_name : (route.meta.title || '首页') }}</h1>
       <div class="mobile-header-right">
-        <!-- 消息铃铛 (Frosted Glass Module) -->
-        <div class="bell-glass-container" @click="router.push('/notice/my')">
-          <el-badge :value="userStore.unreadCount" :hidden="!userStore.unreadCount" :max="99" class="msg-badge-premium">
-            <el-icon class="silver-bell"><Bell /></el-icon>
-          </el-badge>
-        </div>
-        
+        <template v-if="isLoggedIn">
+          <!-- 消息铃铛 (Frosted Glass Module) -->
+          <div class="bell-glass-container" @click="router.push('/notice/my')">
+            <el-badge :value="userStore.unreadCount" :hidden="!userStore.unreadCount" :max="99" class="msg-badge-premium">
+              <el-icon class="silver-bell"><Bell /></el-icon>
+            </el-badge>
+          </div>
+          
 
-        <!-- 头像 & 菜单 -->
-        <el-dropdown 
-          @command="handleCommand" 
-          trigger="click" 
-          popper-class="user-dropdown" 
-          placement="bottom-end"
-          :teleported="true"
-        >
-          <el-avatar :size="38" :src="userInfo?.avatar" class="header-avatar header-avatar-with-border">
-            <el-icon :size="20"><User /></el-icon>
-          </el-avatar>
-          <template #dropdown>
-            <el-dropdown-menu class="user-dropdown">
+          <!-- 头像 & 菜单 -->
+          <el-dropdown 
+            @command="handleCommand" 
+            trigger="click" 
+            popper-class="user-dropdown-popper" 
+            placement="bottom-end"
+            :teleported="true"
+          >
+            <el-avatar :size="38" :src="userInfo?.avatar" class="header-avatar header-avatar-with-border">
+              <el-icon :size="20"><User /></el-icon>
+            </el-avatar>
+            <template #dropdown>
+              <el-dropdown-menu class="user-dropdown">
 
-              <!-- 2. 个人资料 -->
-              <el-dropdown-item command="profile">
-                <div class="menu-item-content">
-                  <el-icon><User /></el-icon>
-                  <span>我的资料</span>
-                </div>
-              </el-dropdown-item>
+                <!-- 2. 个人资料 -->
+                <el-dropdown-item command="profile">
+                  <div class="menu-item-content">
+                    <el-icon><User /></el-icon>
+                    <span>我的资料</span>
+                  </div>
+                </el-dropdown-item>
 
-              <!-- 3. 退出登录 -->
-              <el-dropdown-item divided command="logout" class="logout-item">
-                <div class="menu-item-content">
-                  <el-icon><SwitchButton /></el-icon>
-                  <span>退出登录</span>
-                </div>
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+                <!-- 3. 退出登录 -->
+                <el-dropdown-item divided command="logout" class="logout-item">
+                  <div class="menu-item-content">
+                    <el-icon><SwitchButton /></el-icon>
+                    <span>退出登录</span>
+                  </div>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <template v-else>
+          <div class="mobile-guest-actions">
+            <el-button link type="primary" size="small" class="guest-login-btn" @click="router.push('/login')">登录</el-button>
+          </div>
+        </template>
       </div>
     </header>
 
@@ -106,9 +113,12 @@
         <!-- Logo -->
         <div class="pc-logo" @click="router.push('/home')">
           <div class="logo-icon-box-white">
-            <el-icon :size="22"><Aim /></el-icon>
+            <template v-if="appStore.systemConfig.site_logo">
+              <img :src="appStore.systemConfig.site_logo" class="dynamic-logo-img" alt="logo" />
+            </template>
+            <el-icon v-else :size="22"><Aim /></el-icon>
           </div>
-          <span class="logo-text-white">志愿者系统</span>
+          <span class="logo-text-white">{{ appStore.systemConfig.site_name }}</span>
         </div>
 
         <!-- 横向导航 -->
@@ -128,23 +138,22 @@
 
         <!-- 右侧操作栏?-->
         <div class="pc-header-actions">
-
-          <!-- 消息铃铛 (Premium Frosted Glass) -->
-          <div class="bell-glass-container" @click="router.push('/notice/my')">
-            <el-badge :value="userStore.unreadCount" :hidden="!userStore.unreadCount" :max="99" class="msg-badge-premium">
-              <el-icon class="silver-bell"><Bell /></el-icon>
-            </el-badge>
-          </div>
-
           <template v-if="isLoggedIn">
+            <!-- 消息铃铛 (Premium Frosted Glass) -->
+            <div class="bell-glass-container" @click="router.push('/notice/my')">
+              <el-badge :value="userStore.unreadCount" :hidden="!userStore.unreadCount" :max="99" class="msg-badge-premium">
+                <el-icon class="silver-bell"><Bell /></el-icon>
+              </el-badge>
+            </div>
+
             <el-dropdown 
               @command="handleCommand" 
               trigger="click" 
-              popper-class="user-dropdown" 
+              popper-class="user-dropdown-popper" 
               placement="bottom-end"
               :teleported="true"
             >
-              <div class="user-avatar-trigger" ref="userTrigger">
+              <div class="user-avatar-trigger">
                 <el-avatar :size="34" :src="userInfo?.avatar" class="header-avatar-with-border">
                   <el-icon><User /></el-icon>
                 </el-avatar>
@@ -217,7 +226,7 @@
 
     <!-- 底部 Footer -->
     <footer class="pc-footer">
-      <span>© 2026 校园志愿者管理系</span>
+      <span>© 2026 {{ appStore.systemConfig.site_name }}</span>
       <span class="dot">·</span>
       <span>用科技传递温</span>
     </footer>
@@ -235,18 +244,15 @@
           <span></span>
         </div>
       </div>
-      <span class="admin-title">{{ isAdmin ? '管理后台' : '组织者中心' }}</span>
+      <span class="admin-title">{{ appStore.systemConfig.site_name }}</span>
       <div class="header-right-action">
-        <!-- 消息铃铛 -->
-        <el-badge v-if="!isOrganizerRoute" :value="userStore.unreadCount" :hidden="!userStore.unreadCount" :max="99" class="msg-badge mr-10">
-          <el-icon class="action-icon" @click="router.push('/notice/my')"><Bell /></el-icon>
-        </el-badge>
+
 
 
         <el-dropdown 
           @command="handleCommand" 
           trigger="click" 
-          popper-class="user-dropdown" 
+          popper-class="user-dropdown-popper" 
           placement="bottom-end"
           :teleported="true"
         >
@@ -337,9 +343,12 @@
         <!-- Logo -->
         <div class="admin-logo" @click="handleLogoClick">
           <div class="logo-icon-box">
-            <el-icon :size="24"><Aim /></el-icon>
+            <template v-if="appStore.systemConfig.site_logo">
+              <img :src="appStore.systemConfig.site_logo" class="dynamic-logo-img" alt="logo" />
+            </template>
+            <el-icon v-else :size="24"><Aim /></el-icon>
           </div>
-          <span v-show="!isCollapsed" class="logo-text">{{ isAdmin ? '管理后台' : '组织工作台' }}</span>
+          <span v-show="!isCollapsed" class="logo-text">{{ appStore.systemConfig.site_name }}</span>
         </div>
 
         <!-- 菜单 -->
@@ -395,7 +404,7 @@
           <el-dropdown 
             @command="handleCommand" 
             trigger="click" 
-            popper-class="user-dropdown" 
+            popper-class="user-dropdown-popper" 
             placement="bottom-end"
             :teleported="true"
           >
@@ -474,11 +483,13 @@ import {
 import { adminMenus } from '@/config/adminMenus'
 import { orgMenus } from '@/config/orgMenus'
 import { useUserStore } from '@/stores/user'
+import { useAppStore } from '@/stores/app'
 import { useMobile } from '@/composables/useMobile'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const appStore = useAppStore()
 
 // --- 静态导航配置 (提前初始化以供 watch 使用) ---
 const mobileTabItems = [
@@ -524,26 +535,6 @@ watch(() => route.path, (to, from) => {
     transitionName.value = 'page-pop'
   }
 }, { immediate: true })
-
-const userTrigger = ref<HTMLElement | null>(null)
-
-watch(() => route.path, () => {
-  // 动态计算下拉菜单宽度与触发器对齐
-  if (userTrigger.value) {
-    const width = userTrigger.value.offsetWidth
-    document.documentElement.style.setProperty('--el-dropdown-menu-width', `${width}px`)
-  }
-})
-
-// 初始化也尝试计算一次
-onMounted(() => {
-  setTimeout(() => {
-    if (userTrigger.value) {
-      const width = userTrigger.value.offsetWidth
-      document.documentElement.style.setProperty('--el-dropdown-menu-width', `${width}px`)
-    }
-  }, 500)
-})
 
 // 初始化主题
 onMounted(() => {
@@ -707,11 +698,14 @@ const handleCommand = (command: string) => {
 
 // 获取未读消息
 onMounted(() => {
-  if (isLoggedIn.value) {
+  // 仅在真实登录且为志愿者账号时尝试获取未读消息数
+  const token = localStorage.getItem('token')
+  if (token && isVolunteer.value) {
     userStore.fetchUnreadCount()
   }
+  appStore.fetchSystemConfig() // 获取系统全局配置
   window.addEventListener('scroll', handleScroll, { passive: true })
-  updateSidebarIndicator() // 初始化侧边栏指示?
+  updateSidebarIndicator() // 初始化侧边栏指示
 })
 
 onUnmounted(() => {
@@ -1910,16 +1904,19 @@ watch(() => route.path, () => {
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.6) !important;
-  border-radius: 16px !important;
+  border-radius: 20px !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08) !important;
   padding: 8px !important;
   overflow: hidden;
-  min-width: 140px !important; // 兜底宽度
-  width: var(--el-dropdown-menu-width, auto); // 动态宽度对齐
+  width: 160px !important;
+  min-width: 160px !important;
+  margin-right: -10px !important;
   
-  /* 动画起点：稍微缩?*/
+  /* 动画起点：稍微缩小 */
   transform-origin: top right;
-  animation: menu-pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 果冻弹跳曲线 */
+  animation: menu-pop 0.30s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 果冻弹跳曲线 */
+
+
 }
 
 /* ================================================================ */
@@ -1958,15 +1955,21 @@ html {
   font-weight: 500;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; 
-  align-items: center; 
-  gap: 10px;
-  padding: 10px 16px !important;
+  align-items: center; // 垂直居中对齐
+  gap: 12px;
+  padding: 12px 20px !important; // 左右边距一致，增加高度
 
-  /* 图标样式 */
   .el-icon, i, svg { 
     transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); 
     color: #888; 
-    font-size: 16px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  span {
+    line-height: 1; // 修复文字偏上的问题
   }
 
   /* Hover 特效：右?+ 变色 + 极光青背?*/
@@ -2019,12 +2022,13 @@ html {
   }
 }
 
-/* 移除 Element 默认的小三角 (可选，视设计而定) */
-.el-popper.is-light.el-dropdown__popper {
+/* 移除 Element 默认的小三角 (彻底重合对齐) */
+.el-popper.is-light.el-dropdown__popper.user-dropdown-popper {
   border: none !important;
-  .el-popper__arrow::before {
-    background: rgba(255, 255, 255, 0.85) !important;
-    border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  .el-popper__arrow {
+    display: none !important; // 隐藏小三角，避免偏移误导
   }
 }
 </style>

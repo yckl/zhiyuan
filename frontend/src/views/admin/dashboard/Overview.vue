@@ -161,6 +161,14 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const loading = ref(true)
 
+interface Task {
+  type: string;
+  source: string;
+  status: string;
+  submitTime: string;
+  actionUrl?: string;
+}
+
 // Data Refs
 const summary = ref({
   totalVolunteers: 0,
@@ -169,7 +177,7 @@ const summary = ref({
   pendingAudits: 0
 })
 
-const pendingTasks = ref([])
+const pendingTasks = ref<Task[]>([])
 
 // Charts Refs
 const lineChartRef = ref<HTMLElement | null>(null)
@@ -347,11 +355,19 @@ const handleAction = (task: any) => {
 
 .stats-card {
   height: 100px;
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border-light);
+  border: none !important;
   transition: transform 0.3s;
   box-shadow: var(--shadow-light);
+  overflow: hidden;
+  background-color: transparent !important;
+
+  :deep(.el-card__body) {
+    padding: 0 !important;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background-color: transparent;
+  }
   
   &:hover {
     transform: translateY(-5px);
@@ -363,54 +379,52 @@ const handleAction = (task: any) => {
     align-items: center;
     padding: 0 20px;
     width: 100%;
+    height: 100%;
   }
 
   .icon-wrapper {
-    width: 60px;
-    height: 60px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 15px;
-    font-size: 28px;
-    color: white;
+    font-size: 24px;
+    color: white !important;
+    background: rgba(255, 255, 255, 0.2) !important;
   }
 
   .info {
     flex: 1;
     .label {
       font-size: 14px;
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba(255, 255, 255, 0.9) !important;
       margin-bottom: 5px;
     }
     .value {
       font-size: 24px;
       font-weight: bold;
-      color: white;
+      color: white !important;
     }
   }
 }
 
-// Card Colors
-.blue-card {
-  background: linear-gradient(135deg, #409EFF, #36D1DC);
-  .icon-wrapper { background: rgba(255, 255, 255, 0.2); }
+// Card Colors - apply gradients to body
+.blue-card :deep(.el-card__body) {
+  background: linear-gradient(135deg, #409EFF, #36D1DC) !important;
 }
 
-.green-card {
-  background: linear-gradient(135deg, #67C23A, #85E89D);
-  .icon-wrapper { background: rgba(255, 255, 255, 0.2); }
+.green-card :deep(.el-card__body) {
+  background: linear-gradient(135deg, #67C23A, #85E89D) !important;
 }
 
-.purple-card {
-  background: linear-gradient(135deg, #a18cd1, #CA72D1);
-  .icon-wrapper { background: rgba(255, 255, 255, 0.2); }
+.purple-card :deep(.el-card__body) {
+  background: linear-gradient(135deg, #a18cd1, #CA72D1) !important;
 }
 
-.red-card {
-  background: linear-gradient(135deg, #F56C6C, #fbc2eb);
-  .icon-wrapper { background: rgba(255, 255, 255, 0.2); }
+.red-card :deep(.el-card__body) {
+  background: linear-gradient(135deg, #F56C6C, #fbc2eb) !important;
 }
 
 .charts-row {

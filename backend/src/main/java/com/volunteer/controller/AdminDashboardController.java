@@ -163,7 +163,10 @@ public class AdminDashboardController {
             task.setStatus("待审核");
             task.setActionUrl("/admin/activity/audit?id=" + act.getId());
 
-            Organizer org = organizerMapper.selectById(act.getOrganizerId());
+            Organizer org = organizerMapper.selectByUserId(act.getOrganizerId());
+            if (org == null) {
+                org = organizerMapper.selectById(act.getOrganizerId());
+            }
             task.setSource(org != null ? org.getOrgName() : "未知组织");
 
             tasks.add(task);
