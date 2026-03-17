@@ -1,8 +1,4 @@
-这里是为您整合好的、最完整版的 `README.md` 文件内容。我已经将**双端架构**、**视觉创新点**以及**详尽的三端功能模块**全部融于其中，结构清晰，排版精美。
 
-您只需要点击代码块右上角的\*\*“复制”\*\*按钮，然后直接粘贴到您项目根目录的 `README.md` 文件中即可：
-
-````markdown
 # 🌟 校园志愿服务管理系统 (Campus Volunteer System)
 
 ![Vue.js](https://img.shields.io/badge/Vue%203-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)
