@@ -13,7 +13,7 @@ const getBaseURL = () => {
         // 确保以 /api 结尾
         return savedUrl.endsWith('/api') ? savedUrl : `${savedUrl}/api`
     }
-    return 'http://192.168.0.101:8080/api'
+    return import.meta.env.VITE_API_BASE_URL || '/api'
 }
 
 const baseURL = getBaseURL()

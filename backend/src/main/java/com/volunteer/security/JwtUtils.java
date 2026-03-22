@@ -145,4 +145,15 @@ public class JwtUtils {
         }
         return claims.getExpiration().before(new Date());
     }
+
+    /**
+     * 获取Token过期时间
+     *
+     * @param token JWT Token
+     * @return 过期时间
+     */
+    public Date getExpirationDateFromToken(String token) {
+        Claims claims = parseToken(token);
+        return claims != null ? claims.getExpiration() : null;
+    }
 }

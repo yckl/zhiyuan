@@ -40,4 +40,12 @@ public interface AuthService {
      * @return 用户信息
      */
     SysUser getUserById(Long userId);
+
+    /**
+     * 更新用户头像
+     *
+     * @param username 用户名
+     * @param avatarUrl 头像URL
+     */
+    void updateUserAvatar(String username, String avatarUrl);
 }

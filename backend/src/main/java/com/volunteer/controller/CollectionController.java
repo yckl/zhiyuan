@@ -34,6 +34,9 @@ public class CollectionController {
     @PostMapping("/toggle")
     @Operation(summary = "收藏/取消收藏", description = "切换收藏状态，已收藏则取消，未收藏则添加")
     public Result<Boolean> toggleFavorite(@RequestBody Map<String, Object> params) {
+        if (params == null || params.get("targetId") == null || params.get("targetType") == null) {
+            return Result.error("参数 targetId 和 targetType 不能为空");
+        }
         Long targetId = Long.valueOf(params.get("targetId").toString());
         String targetType = params.get("targetType").toString().toUpperCase();
 

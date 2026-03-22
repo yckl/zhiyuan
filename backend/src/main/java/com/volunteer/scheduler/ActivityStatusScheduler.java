@@ -22,10 +22,10 @@ public class ActivityStatusScheduler {
     private final ActivityMapper activityMapper;
 
     /**
-     * 每小时执行一次活动状态自动流转
+     * 每5分钟执行一次活动状态自动流转
      * 将已到开始时间的活动设为"进行中"，已过结束时间的活动设为"已结束"
      */
-    @Scheduled(cron = "0 0 * * * ?") // 每小时整点执行
+    @Scheduled(cron = "0 */5 * * * ?") // 每5分钟执行
     public void updateActivityStatus() {
         LocalDateTime now = LocalDateTime.now();
         log.info("开始活动状态自动流转检查, 当前时间: {}", now);
@@ -59,3 +59,4 @@ public class ActivityStatusScheduler {
         return new int[] { toOngoing, toEnded };
     }
 }
+

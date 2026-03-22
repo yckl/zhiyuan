@@ -141,21 +141,5 @@ public class SecurityConfig {
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
                 source.registerCorsConfiguration("/**", configuration);
                 return source;
-        }
-
-        /**
-         * 注册CORS过滤器，优先级最高
-         */
-        @Bean
-        public org.springframework.web.filter.CorsFilter corsFilter() {
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                CorsConfiguration configuration = new CorsConfiguration();
-                configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-                configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                configuration.setAllowedHeaders(List.of("*"));
-                configuration.setAllowCredentials(true);
-                configuration.setMaxAge(3600L);
-                source.registerCorsConfiguration("/**", configuration);
-                return new org.springframework.web.filter.CorsFilter(source);
-        }
+    }
 }

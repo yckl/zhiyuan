@@ -135,12 +135,12 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     private List<Map<String, Object>> getDefaultTrendData() {
         List<Map<String, Object>> data = new ArrayList<>();
-        data.add(Map.of("month", "2025-08", "count", 120));
-        data.add(Map.of("month", "2025-09", "count", 145));
-        data.add(Map.of("month", "2025-10", "count", 168));
-        data.add(Map.of("month", "2025-11", "count", 132));
-        data.add(Map.of("month", "2025-12", "count", 178));
-        data.add(Map.of("month", "2026-01", "count", 95));
+        data.add(Map.of("month", "2025-10", "count", 120));
+        data.add(Map.of("month", "2025-11", "count", 145));
+        data.add(Map.of("month", "2025-12", "count", 168));
+        data.add(Map.of("month", "2026-01", "count", 132));
+        data.add(Map.of("month", "2026-02", "count", 178));
+        data.add(Map.of("month", "2026-03", "count", 155));
         return data;
     }
 

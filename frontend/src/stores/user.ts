@@ -10,8 +10,16 @@ export const useUserStore = defineStore('user', () => {
     const isLoggedIn = computed(() => !!token.value)
     const role = computed(() => userInfo.value?.role || '')
 
+    interface UserInfo {
+        id?: number;
+        username?: string;
+        role?: string;
+        avatar?: string;
+        [key: string]: any;
+    }
+
     // 操作
-    function setUser(info: any, t: string) {
+    function setUser(info: UserInfo | null, t: string) {
         userInfo.value = info
         token.value = t
         localStorage.setItem('userInfo', JSON.stringify(info))

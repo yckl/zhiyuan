@@ -66,4 +66,16 @@ public interface ActivityMapper extends BaseMapper<Activity> {
                         "AND is_deleted = 0 " +
                         "AND end_time <= #{now}")
         int batchUpdateToEnded(@Param("now") LocalDateTime now);
+
+        /**
+         * 原子增加浏览次数
+         *
+         * @param activityId 活动ID
+         * @return 影响行数
+         */
+        @Update("UPDATE activity SET view_count = view_count + 1, " +
+                        "update_time = NOW() " +
+                        "WHERE id = #{activityId} " +
+                        "AND is_deleted = 0")
+        int atomicIncrementViewCount(@Param("activityId") Long activityId);
 }

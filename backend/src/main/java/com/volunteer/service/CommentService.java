@@ -5,8 +5,6 @@ import com.volunteer.dto.CommentDTO;
 import com.volunteer.dto.CommentRequest;
 import com.volunteer.entity.Comment;
 
-import java.util.List;
-
 /**
  * 评论服务接口
  */

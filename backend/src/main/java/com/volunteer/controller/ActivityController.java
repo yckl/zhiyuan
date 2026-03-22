@@ -87,7 +87,7 @@ public class ActivityController {
     public Result<Object> getActivityDetail(@PathVariable Long id) {
         try {
             // 使用新的VO方法获取完整详情（包含组织者信息）
-            var activity = ((com.volunteer.service.impl.ActivityServiceImpl) activityService).getActivityDetailVO(id);
+            var activity = activityService.getActivityDetailVO(id);
             // 增加浏览次数
             activityService.incrementViewCount(id);
 

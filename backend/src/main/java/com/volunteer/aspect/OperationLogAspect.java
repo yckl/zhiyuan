@@ -18,7 +18,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import io.swagger.v3.oas.annotations.Operation;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 
 /**
  * 操作日志AOP切面

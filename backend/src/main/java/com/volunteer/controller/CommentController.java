@@ -145,6 +145,7 @@ public class CommentController {
      * 生成模拟测试数据（隐藏接口）
      */
     @GetMapping("/mockData")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "生成模拟数据", description = "系统自动为所有活动生成海量嵌套评论以供测试使用")
     public Result<String> generateMockComments() {
         try {

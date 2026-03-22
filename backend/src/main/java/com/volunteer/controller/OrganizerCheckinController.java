@@ -252,9 +252,9 @@ public class OrganizerCheckinController {
     public Result<Void> verifyCheckin(@RequestBody Map<String, Object> params) {
         try {
             String token = params.get("token").toString();
-            Long volunteerId = SecurityUtils.getUserId(); // 从 Token 获取当前扫码学生的 ID (身份锁)
+            Long userId = SecurityUtils.getUserId(); // 从 Token 获取当前扫码学生的 sys_user.id (身份锁)
 
-            if (volunteerId == null)
+            if (userId == null)
                 return Result.unauthorized("未授权");
 
             // 1. 时效锁：解码Token并检查过期
@@ -270,10 +270,18 @@ public class OrganizerCheckinController {
                 return Result.error("核销码已过期，请使用最新动态码");
             }
 
-            // 2. 活动与身份锁：查找该志愿者的正向报名记录
+            // 2. 将 userId 转换为 volunteer.id（activity_registration 存的是 volunteer 表主键）
+            com.volunteer.entity.Volunteer volunteer = volunteerMapper.selectOne(
+                    new LambdaQueryWrapper<com.volunteer.entity.Volunteer>()
+                            .eq(com.volunteer.entity.Volunteer::getUserId, userId));
+            if (volunteer == null) {
+                return Result.error("志愿者信息不存在，请先完善个人资料");
+            }
+
+            // 3. 活动与身份锁：查找该志愿者的正向报名记录
             LambdaQueryWrapper<ActivityRegistration> query = new LambdaQueryWrapper<>();
             query.eq(ActivityRegistration::getActivityId, activityId)
-                    .eq(ActivityRegistration::getVolunteerId, volunteerId)
+                    .eq(ActivityRegistration::getVolunteerId, volunteer.getId())
                     .eq(ActivityRegistration::getIsDeleted, 0);
 
             ActivityRegistration registration = registrationMapper.selectOne(query);
@@ -293,7 +301,7 @@ public class OrganizerCheckinController {
             registration.setStatus(2); // 更新为已核销/已签到
             registrationMapper.updateById(registration);
 
-            log.info("扫码核销成功: activity={}, volunteer={}", activityId, volunteerId);
+            log.info("扫码核销成功: activity={}, volunteer={}", activityId, volunteer.getId());
             return Result.success("核销成功！准时到场，服从安排。", null);
         } catch (Exception e) {
             log.error("扫码核销异常: {}", e.getMessage());

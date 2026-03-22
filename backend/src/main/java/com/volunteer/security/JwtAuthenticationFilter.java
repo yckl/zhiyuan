@@ -6,8 +6,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
+import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import java.io.IOException;
 
 /**
@@ -28,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
     private final UserDetailsServiceImpl userDetailsService;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${jwt.header}")
     private String tokenHeader;
@@ -43,6 +46,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = getTokenFromRequest(request);
 
             if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
+                // Check if token is in blacklist (graceful degradation)
+                try {
+                    Boolean isBlacklisted = redisTemplate.hasKey("jwt:blacklist:" + token);
+                    if (Boolean.TRUE.equals(isBlacklisted)) {
+                        log.warn("拦截到已注销的Token");
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                } catch (Exception e) {
+                    log.debug("Redis降级，跳过Token黑名单校验: {}", e.getMessage());
+                }
+
                 String username = jwtUtils.getUsernameFromToken(token);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {

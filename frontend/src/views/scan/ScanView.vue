@@ -91,11 +91,9 @@ const initScanner = async () => {
     // 1. 创建实例
     html5QrCode = new Html5Qrcode("reader")
 
-    // 2. 配置项
+    // 2. 配置项（不设置 qrbox，由自定义 CSS overlay 提供扫描框视觉效果）
     const config = {
       fps: 15,
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0,
       showTorchButtonIfSupported: true // [增强] 支持手电筒
     }
 
@@ -344,6 +342,30 @@ onUnmounted(() => {
   canvas {
     display: none !important; /* 隐藏视频流上的定位框 */
   }
+}
+
+/* 隐藏库自带的扫描框边框和阴影 */
+:deep(#reader__scan_region > br) {
+  display: none !important;
+}
+
+/* 关键：隐藏库内部渲染的扫描框（红色/蓝色边框） */
+:deep(#reader > div:not(#reader__scan_region):not(#reader__dashboard)) {
+  display: none !important;
+}
+
+:deep(#reader__scan_region > div) {
+  display: none !important;
+}
+
+/* 隐藏扫描区域的内联边框样式 */
+:deep(#reader__scan_region) {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+:deep(#reader) {
+  border: none !important;
 }
 
 :deep(#reader__dashboard) {

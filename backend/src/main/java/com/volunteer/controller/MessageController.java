@@ -65,6 +65,9 @@ public class MessageController {
     @Operation(summary = "标记单条已读")
     public Result<Void> readMessage(@PathVariable Long id) {
         Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
         SysMessage message = sysMessageService.getById(id);
         if (message != null && message.getReceiverId().equals(userId)) {
             message.setIsRead(1);
@@ -77,6 +80,9 @@ public class MessageController {
     @Operation(summary = "全部标记已读")
     public Result<Void> readAll() {
         Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
         // update sys_message set is_read = 1 where receiver_id = ? and is_read = 0
         sysMessageService.update(new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<SysMessage>()
                 .eq(SysMessage::getReceiverId, userId)

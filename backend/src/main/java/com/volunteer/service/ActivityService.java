@@ -65,4 +65,9 @@ public interface ActivityService {
      * 获取活动已报名参与者
      */
     java.util.List<java.util.Map<String, Object>> getActivityParticipants(Long activityId);
+
+    /**
+     * 获取活动详情（包含组织者完整信息）
+     */
+    com.volunteer.vo.ActivityDetailVO getActivityDetailVO(Long id);
 }

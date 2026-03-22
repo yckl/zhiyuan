@@ -87,14 +87,16 @@ const routes: RouteRecordRaw[] = [
                         name: 'MallDetail',
                         component: () => import('@/views/mall/MallDetail.vue'),
                         meta: { title: '商品详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true, hideHeader: true }
-                    },
-                    {
-                        path: '/scan/index',
-                        name: 'Scan',
-                        component: () => import('@/views/scan/ScanView.vue'),
-                        meta: { title: '扫一扫', hideMenu: true, requiresAuth: true, roles: ['VOLUNTEER'] }
                     }
                 ]
+            },
+
+            // ================== 扫一扫（独立路由） ==================
+            {
+                path: 'scan',
+                name: 'Scan',
+                component: () => import('@/views/scan/ScanView.vue'),
+                meta: { title: '扫一扫', hideMenu: true, requiresAuth: true, roles: ['VOLUNTEER'] }
             },
 
             // ================== 新增：活动中心 ==================
@@ -137,12 +139,6 @@ const routes: RouteRecordRaw[] = [
                         meta: { title: '心得广场', requiresAuth: false, roles: ['VOLUNTEER'] }
                     },
                     {
-                        path: ':id',
-                        name: 'ExperienceDetail',
-                        component: () => import('@/views/experience/ExperienceDetail.vue'),
-                        meta: { title: '心得详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true }
-                    },
-                    {
                         path: 'create',
                         name: 'ExperienceCreate',
                         component: () => import('@/views/experience/ExperiencePublish.vue'),
@@ -153,6 +149,12 @@ const routes: RouteRecordRaw[] = [
                         name: 'ExperienceEditor',
                         component: () => import('@/views/experience/ExperiencePublish.vue'),
                         meta: { title: '编辑心得', requiresAuth: true, roles: ['VOLUNTEER'] }
+                    },
+                    {
+                        path: ':id',
+                        name: 'ExperienceDetail',
+                        component: () => import('@/views/experience/ExperienceDetail.vue'),
+                        meta: { title: '心得详情', requiresAuth: false, roles: ['VOLUNTEER'], hideTabBar: true }
                     }
                 ]
             },

@@ -52,7 +52,7 @@ public class AdminDashboardController {
         // QueryWrapper select string.
         // Using QueryWrapper
         com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ActivityRegistration> sumQuery = new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
-        sumQuery.select("IFNULL(SUM(actual_hours), 0)").eq("status", 1).eq("is_deleted", 0);
+        sumQuery.select("IFNULL(SUM(actual_hours), 0)").eq("status", 3).eq("is_deleted", 0);
         // Note: status 1 might mean CONFIRMED/COMPLETED. Need to verify status
         // constants.
         // Assuming status 1 is valid based on previous files.

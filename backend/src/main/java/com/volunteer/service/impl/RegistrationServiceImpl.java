@@ -204,15 +204,10 @@ public class RegistrationServiceImpl implements RegistrationService {
         registration.setUpdateTime(LocalDateTime.now());
         registrationMapper.updateById(registration);
 
-        // 如果之前是已通过或已签到状态，更新活动目前参与人数
+        // 如果之前是已通过或已签到状态，更新活动目前参与人数（使用原子操作）
         if (oldStatus != null && oldStatus >= ActivityRegistration.STATUS_CONFIRMED
                 && oldStatus <= ActivityRegistration.STATUS_COMPLETED) {
-            Activity activity = activityMapper.selectById(registration.getActivityId());
-            if (activity != null && activity.getCurrentParticipants() > 0) {
-                activity.setCurrentParticipants(activity.getCurrentParticipants() - 1);
-                activity.setUpdateTime(LocalDateTime.now());
-                activityMapper.updateById(activity);
-            }
+            activityMapper.decrementParticipants(registration.getActivityId());
         }
 
         log.info("取消报名: registrationId={}", registrationId);
@@ -307,9 +302,12 @@ public class RegistrationServiceImpl implements RegistrationService {
             throw new RuntimeException("报名记录不存在");
         }
 
-        // 验证操作者权限：必须是活动发布者
+        // 验证操作者权限：必须是活动发布者或管理员
         Activity activity = activityMapper.selectById(registration.getActivityId());
-        if (activity == null || !activity.getOrganizerId().equals(operatorId)) {
+        if (activity == null) {
+            throw new RuntimeException("活动不存在");
+        }
+        if (!activity.getOrganizerId().equals(operatorId) && !SecurityUtils.isAdmin()) {
             throw new RuntimeException("无权操作");
         }
 
@@ -382,6 +380,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     /**
      * 通过签到码签到
      */
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void signInByCode(String code, Long volunteerUserId) {
         // 1. 根据签到码查询活动 (注意：签到码可能重复，取最新未结束的活动)
@@ -473,6 +472,7 @@ public class RegistrationServiceImpl implements RegistrationService {
     /**
      * 评价志愿者
      */
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void rateVolunteer(Long registrationId, Integer rating, String comment, Long operatorId) {
         ActivityRegistration registration = registrationMapper.selectById(registrationId);
@@ -545,18 +545,8 @@ public class RegistrationServiceImpl implements RegistrationService {
         dto.setRating(registration.getRating());
         dto.setRatingComment(registration.getRatingComment());
 
-        // 证书逻辑：如果状态是已完成(3)，则根据活动ID模拟生成证书ID (实际项目中这通常查证书表)
-        if (registration.getStatus() != null && registration.getStatus() == 3) {
-            // 这里为了演示逻辑合理性，仅 ID 为 5 的倍数或特定的几个活动有证书
-            if (registration.getActivityId() != null && (registration.getActivityId() % 2 == 0)) {
-                dto.setCertificateId(registration.getId() + 100000L); // 模拟ID
-                dto.setHasCertificate(true);
-            } else {
-                dto.setHasCertificate(false);
-            }
-        } else {
-            dto.setHasCertificate(false);
-        }
+        // 证书逻辑：未对接证书表，统一设为 false
+        dto.setHasCertificate(false);
 
         return dto;
     }

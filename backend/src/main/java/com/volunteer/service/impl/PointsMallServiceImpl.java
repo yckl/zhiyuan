@@ -111,11 +111,16 @@ public class PointsMallServiceImpl implements PointsMallService {
             return BuyResultVO.fail("库存不足，请稍后重试");
         }
 
-        // 7. 扣减用户积分
-        int newBalance = volunteer.getAvailablePoints() - totalCost;
-        volunteer.setAvailablePoints(newBalance);
-        volunteer.setUpdateTime(LocalDateTime.now());
-        volunteerMapper.updateById(volunteer);
+        // 7. 扣减用户积分 (行级锁原子操作解决超卖和负数漏洞)
+        int pAffected = volunteerMapper.deductPoints(volunteer.getId(), totalCost);
+        if (pAffected == 0) {
+            // 如果并发导致此时积分不足，必须抛出 RuntimeException 以触发回滚库存(decreaseStock)
+            throw new com.volunteer.exception.BusinessException("并发余额变动，积分不足");
+        }
+        
+        // 重新获取真实最新余额，用于生成流水明细
+        volunteer = volunteerMapper.selectById(volunteer.getId());
+        int newBalance = volunteer.getAvailablePoints();
 
         // 8. 创建积分记录
         PointsRecord record = new PointsRecord();

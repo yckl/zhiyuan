@@ -75,4 +75,14 @@ public interface RegistrationService {
      * 检查是否已报名 (通过用户ID)
      */
     boolean hasRegisteredByUserId(Long activityId, Long userId);
+
+    /**
+     * 通过签到码签到
+     */
+    void signInByCode(String code, Long volunteerUserId);
+
+    /**
+     * 评价志愿者
+     */
+    void rateVolunteer(Long registrationId, Integer rating, String comment, Long operatorId);
 }

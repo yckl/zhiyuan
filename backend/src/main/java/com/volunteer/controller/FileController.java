@@ -1,8 +1,7 @@
 package com.volunteer.controller;
 
 import com.volunteer.common.Result;
-import com.volunteer.entity.SysUser;
-import com.volunteer.mapper.SysUserMapper;
+import com.volunteer.service.AuthService;
 import com.volunteer.service.FileService;
 import com.volunteer.util.FileUploadValidator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,7 +31,7 @@ import java.util.Map;
 public class FileController {
 
     private final FileService fileService;
-    private final SysUserMapper sysUserMapper;
+    private final AuthService authService;
 
     /**
      * 单文件上传
@@ -101,15 +100,7 @@ public class FileController {
 
             // 2. 获取当前登录用户并更新数据库【关键修复】
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            SysUser currentUser = sysUserMapper.selectOne(
-                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysUser>()
-                            .eq(SysUser::getUsername, username));
-
-            if (currentUser != null) {
-                currentUser.setAvatar(url);
-                sysUserMapper.updateById(currentUser);
-                log.info("用户 {} 头像已更新: {}", username, url);
-            }
+            authService.updateUserAvatar(username, url);
 
             Map<String, String> result = new HashMap<>();
             result.put("url", url);

@@ -172,15 +172,16 @@ public class VolunteerServiceImpl implements VolunteerService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addPoints(Long volunteerId, Integer points, String reason) {
-        Volunteer volunteer = volunteerMapper.selectById(volunteerId);
-        if (volunteer == null) {
+        // 使用原子 SQL 更新，避免并发 lost update
+        LambdaUpdateWrapper<Volunteer> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Volunteer::getId, volunteerId)
+                .setSql("total_points = total_points + " + points)
+                .setSql("available_points = available_points + " + points)
+                .set(Volunteer::getUpdateTime, LocalDateTime.now());
+        int rows = volunteerMapper.update(null, updateWrapper);
+        if (rows == 0) {
             throw new RuntimeException("志愿者不存在");
         }
-
-        volunteer.setTotalPoints(volunteer.getTotalPoints() + points);
-        volunteer.setAvailablePoints(volunteer.getAvailablePoints() + points);
-        volunteer.setUpdateTime(LocalDateTime.now());
-        volunteerMapper.updateById(volunteer);
 
         log.info("增加积分: volunteerId={}, points={}, reason={}", volunteerId, points, reason);
     }
@@ -188,18 +189,21 @@ public class VolunteerServiceImpl implements VolunteerService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deductPoints(Long volunteerId, Integer points, String reason) {
-        Volunteer volunteer = volunteerMapper.selectById(volunteerId);
-        if (volunteer == null) {
-            throw new RuntimeException("志愿者不存在");
-        }
-
-        if (volunteer.getAvailablePoints() < points) {
+        // 使用原子 SQL 更新，同时在 SQL 层检查余额，避免并发超扣
+        LambdaUpdateWrapper<Volunteer> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Volunteer::getId, volunteerId)
+                .ge(Volunteer::getAvailablePoints, points) // SQL 层余额检查
+                .setSql("available_points = available_points - " + points)
+                .set(Volunteer::getUpdateTime, LocalDateTime.now());
+        int rows = volunteerMapper.update(null, updateWrapper);
+        if (rows == 0) {
+            // 可能是志愿者不存在或积分不足
+            Volunteer volunteer = volunteerMapper.selectById(volunteerId);
+            if (volunteer == null) {
+                throw new RuntimeException("志愿者不存在");
+            }
             throw new RuntimeException("积分不足");
         }
-
-        volunteer.setAvailablePoints(volunteer.getAvailablePoints() - points);
-        volunteer.setUpdateTime(LocalDateTime.now());
-        volunteerMapper.updateById(volunteer);
 
         log.info("扣减积分: volunteerId={}, points={}, reason={}", volunteerId, points, reason);
     }
@@ -267,24 +271,25 @@ public class VolunteerServiceImpl implements VolunteerService {
         // 3. 计算荣誉证书 (基础逻辑)
         List<VolunteerStatsVO.HonorItem> honors = new ArrayList<>();
         BigDecimal hours = volunteer.getTotalHours();
+        String today = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         if (hours.compareTo(new BigDecimal("100")) >= 0) {
-            honors.add(createHonor(1L, "百小时志愿证书", "100小时里程碑", "2026-01-15"));
+            honors.add(createHonor(1L, "百小时志愿证书", "100小时里程碑", today));
         } else if (hours.compareTo(new BigDecimal("50")) >= 0) {
-            honors.add(createHonor(2L, "五十小时志愿证书", "50小时里程碑", "2025-12-20"));
+            honors.add(createHonor(2L, "五十小时志愿证书", "50小时里程碑", today));
         }
 
         if (stats.getProfile().getServiceCount() >= 10) {
-            honors.add(createHonor(3L, "服务先锋证书", "累计服务10次", "2025-11-10"));
+            honors.add(createHonor(3L, "服务先锋证书", "累计服务10次", today));
         }
 
         // 根据分类计算特殊荣誉
         radarData.forEach((name, count) -> {
             if (count >= 3) {
                 if (name.contains("环保")) {
-                    honors.add(createHonor(4L, "环保卫士证书", "环保类活动专家", "2025-10-05"));
+                    honors.add(createHonor(4L, "环保卫士证书", "环保类活动专家", today));
                 } else if (name.contains("支教") || name.contains("教育")) {
-                    honors.add(createHonor(5L, "教育之星证书", "助力支教事业", "2025-09-18"));
+                    honors.add(createHonor(5L, "教育之星证书", "助力支教事业", today));
                 }
             }
         });
@@ -314,8 +319,7 @@ public class VolunteerServiceImpl implements VolunteerService {
         item.setId(id);
         item.setName(name);
         item.setDate(date);
-        // 这里暂时传空或特定标识，由前端生成样式图，或者传一个预设的背景图路径
-        item.setImage(subtitle); // 借用image字段传副标题
+        item.setImage(""); // 待对接实际证书图片资源
         return item;
     }
 }

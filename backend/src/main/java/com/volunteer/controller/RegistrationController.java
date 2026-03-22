@@ -158,6 +158,7 @@ public class RegistrationController {
      * 审核报名 (单个)
      */
     @PostMapping("/audit")
+    @PreAuthorize("hasRole('ORGANIZER') or hasRole('ADMIN')")
     @Operation(summary = "审核报名", description = "组织者审核报名申请")
     public Result<Void> auditRegistration(@RequestBody Map<String, Object> params) {
         Long userId = SecurityUtils.getUserId();
@@ -183,6 +184,7 @@ public class RegistrationController {
      * 批量审核报名
      */
     @PostMapping("/audit/batch")
+    @PreAuthorize("hasRole('ORGANIZER') or hasRole('ADMIN')")
     @Operation(summary = "批量审核报名", description = "组织者批量审核报名申请")
     public Result<Void> batchAuditRegistration(@RequestBody Map<String, Object> params) {
         Long userId = SecurityUtils.getUserId();
@@ -246,10 +248,12 @@ public class RegistrationController {
         }
 
         Long userId = SecurityUtils.getUserId();
-        // 如果参数里传了且是管理员等，可能支持代签？目前仅支持志愿者自己签
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
 
         try {
-            ((com.volunteer.service.impl.RegistrationServiceImpl) registrationService).signInByCode(code, userId);
+            registrationService.signInByCode(code, userId);
             return Result.success("签到成功", null);
         } catch (Exception e) {
             log.error("输码签到失败: {}", e.getMessage());
@@ -271,7 +275,7 @@ public class RegistrationController {
         Long operatorId = SecurityUtils.getUserId();
 
         try {
-            ((com.volunteer.service.impl.RegistrationServiceImpl) registrationService).rateVolunteer(id, rating,
+            registrationService.rateVolunteer(id, rating,
                     comment, operatorId);
             return Result.success("评价成功", null);
         } catch (Exception e) {
@@ -328,7 +332,7 @@ public class RegistrationController {
     public Result<Void> settleSingle(@RequestBody Map<String, Object> params) {
         // 委托给 SettlementController，这里简单返回成功
         // 实际逻辑在 SettlementController 中
-        return Result.success("请使用 /organizer/settlement/settle 接口", null);
+        return Result.error(400, "请使用 /organizer/settlement/settle 接口");
     }
 
     /**
@@ -339,7 +343,7 @@ public class RegistrationController {
     public Result<Void> settleBatch(@RequestBody Map<String, Object> params) {
         // 委托给 SettlementController，这里简单返回成功
         // 实际逻辑在 SettlementController 中
-        return Result.success("请使用 /organizer/settlement/batch 接口", null);
+        return Result.error(400, "请使用 /organizer/settlement/batch 接口");
     }
 
     /**

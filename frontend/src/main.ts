@@ -5,7 +5,6 @@ import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import 'element-plus/theme-chalk/dark/css-vars.css' // 必须引入这一行！
 import App from './App.vue'
 import router from './router'
 

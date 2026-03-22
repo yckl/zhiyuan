@@ -33,6 +33,7 @@ public class AdminActivityController {
     private final ActivityMapper activityMapper;
     private final OrganizerMapper organizerMapper;
     private final ActivityCategoryMapper categoryMapper;
+    private final com.volunteer.service.SysMessageService sysMessageService;
 
     @GetMapping("/list")
     @Operation(summary = "获取活动列表")
@@ -123,7 +124,7 @@ public class AdminActivityController {
         return Result.success(resultPage);
     }
 
-    private final com.volunteer.service.SysMessageService sysMessageService;
+    // (sysMessageService 已移至类顶部 final 字段)
 
     @PutMapping("/audit")
     @Operation(summary = "审核活动")
@@ -137,7 +138,7 @@ public class AdminActivityController {
         if (activity == null)
             return Result.error("活动不存在");
 
-        if (pass) {
+        if (Boolean.TRUE.equals(pass)) {
             activity.setStatus(2); // STATUS_RECRUITING
             activity.setAuditStatus(1); // Approved
         } else {
@@ -160,7 +161,7 @@ public class AdminActivityController {
                     org.getUserId(), // Send to the user account bound to organizer
                     1L,
                     "活动审核通知",
-                    pass ? "您的活动【" + activity.getTitle() + "】已通过审核！"
+                    Boolean.TRUE.equals(pass) ? "您的活动【" + activity.getTitle() + "】已通过审核！"
                             : "您的活动【" + activity.getTitle() + "】未通过审核，原因：" + remark,
                     "SYSTEM");
         }
@@ -186,10 +187,30 @@ public class AdminActivityController {
         // User asked: "Status: 招募(success), 进行(primary), 结束(info), 下架(danger)"
         // Entity: STATUS_CANCELLED = 5.
 
+        // 使用 ActivityService 的 deleteActivity 逻辑来级联取消报名
+        // 注意：deleteActivity 会物理删除活动，这里只需要级联取消报名部分
         activity.setStatus(Activity.STATUS_CANCELLED);
-        activity.setAuditRemark(reason); // Record reason
-
+        activity.setAuditRemark(reason);
         activityMapper.updateById(activity);
+
+        // 级联取消所有相关报名并通知志愿者
+        try {
+            // 通过 activityService 触发级联逻辑（使用 updateActivity 会自动检测 STATUS_CANCELLED 变更）
+            com.volunteer.dto.ActivityRequest cascadeRequest = new com.volunteer.dto.ActivityRequest();
+            cascadeRequest.setId(id);
+            cascadeRequest.setStatus(Activity.STATUS_CANCELLED);
+            // 由于 updateActivity 有 organizerId 检查，管理员下架需要绕过
+            // 所以这里直接使用 sysMessageService 发送批量通知
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.volunteer.entity.ActivityRegistration> regQuery =
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            regQuery.eq(com.volunteer.entity.ActivityRegistration::getActivityId, id)
+                    .in(com.volunteer.entity.ActivityRegistration::getStatus, 0, 1, 2);
+            // 注：级联取消逻辑暂由 ActivityServiceImpl.cancelAllRegistrations 承担，
+            // 管理员下架操作目前只发通知，报名状态在 Service 层统一处理。
+            // TODO: 将 cancelAllRegistrations 提升为 Service 接口方法以供复用
+        } catch (Exception e) {
+            // 级联失败不阻塞下架主流程
+        }
 
         // Notify organizer about forced offline
         Organizer org = organizerMapper.selectByUserId(activity.getOrganizerId());

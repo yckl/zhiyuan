@@ -15,7 +15,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/volunteer_system?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: "123456"
+    password: ${DB_PASSWORD:123456}
     hikari:
       minimum-idle: 5
       maximum-pool-size: 20
@@ -72,7 +72,7 @@ mybatis-plus:
 
 # JWT配置
 jwt:
-  secret: VolunteerSystemSecretKey2026VeryLongAndSecureKeyForHS512Algorithm
+  secret: ${JWT_SECRET:VolunteerSystemSecretKey2026VeryLongAndSecureKeyForHS512Algorithm}
   expiration: 86400000  # 24小时，单位毫秒
   header: Authorization
   prefix: "Bearer "
@@ -100,8 +100,8 @@ knife4j:
 logging:
   level:
     root: info
-    com.volunteer: debug
-    com.volunteer.mapper: debug
+    com.volunteer: info
+    com.volunteer.mapper: info
 
 # 文件存储配置
 file:

@@ -79,7 +79,7 @@
           <span><el-icon><Medal /></el-icon> {{ activity.pointsReward || 0 }}</span>
         </div>
         <button class="register-btn" @click.stop="handleClick">
-          {{ activity.status === 2 ? '立即报名' : '查看详情' }}
+          {{ getButtonText(activity) }}
         </button>
       </div>
     </template>
@@ -122,6 +122,16 @@ const getProgressColor = (current: number, max: number) => {
   if (p >= 90) return '#F56C6C'
   if (p >= 70) return '#E6A23C'
   return '#00BFA6'
+}
+
+const getButtonText = (activity: any) => {
+  if (activity.status === 2) {
+    if (activity.registerStart && new Date(activity.registerStart) > new Date()) {
+      return '报名未开始'
+    }
+    return '立即报名'
+  }
+  return '查看详情'
 }
 </script>
 

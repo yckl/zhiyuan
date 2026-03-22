@@ -263,10 +263,14 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
             return LotteryResultVO.fail("暂无奖品");
         }
 
-        // 扣除积分
-        volunteer.setAvailablePoints(volunteer.getAvailablePoints() - pointsCost);
-        volunteer.setUpdateTime(LocalDateTime.now());
-        volunteerMapper.updateById(volunteer);
+        // 扣除积分 (利用底层原子操作)
+        int affected = volunteerMapper.deductPoints(volunteer.getId(), pointsCost);
+        if (affected == 0) {
+            return LotteryResultVO.fail("并发导致积分扣减失败，请检查余额是否充足");
+        }
+        
+        // 重新获取最新数据用于记录流水
+        volunteer = volunteerMapper.selectById(volunteer.getId());
 
         // 记录积分消耗
         PointsRecord pointsRecord = new PointsRecord();
@@ -492,18 +496,15 @@ public class CheckinLotteryServiceImpl implements CheckinLotteryService {
         }
 
         int oldBalance = volunteer.getAvailablePoints() != null ? volunteer.getAvailablePoints() : 0;
-        int newBalance = oldBalance + points;
-        int newTotal = (volunteer.getTotalPoints() != null ? volunteer.getTotalPoints() : 0) + points;
 
-        // 更新内存对象
-        volunteer.setAvailablePoints(newBalance);
-        volunteer.setTotalPoints(newTotal);
-        volunteer.setUpdateTime(LocalDateTime.now());
+        // 更新数据库 (采用并发安全的原子操作)
+        volunteerMapper.addPoints(volunteer.getId(), points);
 
-        // 更新数据库
-        volunteerMapper.updateById(volunteer);
+        // 重新获取最新数据用于记录精确的流水余额
+        volunteer = volunteerMapper.selectById(volunteer.getId());
+        int newBalance = volunteer.getAvailablePoints();
 
-        log.info("积分增加成功. 旧余额: {}, 新余额: {}", oldBalance, newBalance);
+        log.info("积分增加成功 (原子操作). 写入流水日志 旧余额参考: {}, 新余额: {}", oldBalance, newBalance);
 
         // 记录积分流水
         PointsRecord record = new PointsRecord();

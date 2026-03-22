@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.volunteer.exception.BusinessException;
 
 /**
  * 认证服务实现类
@@ -79,10 +80,10 @@ public class AuthServiceImpl implements AuthService {
 
         } catch (BadCredentialsException e) {
             log.warn("登录失败，用户名或密码错误: {}", request.getUsername());
-            throw new RuntimeException("用户名或密码错误");
+            throw new BusinessException(401, "用户名或密码错误");
         } catch (Exception e) {
             log.error("登录异常: {}", e.getMessage(), e);
-            throw new RuntimeException("登录失败: " + e.getMessage());
+            throw new BusinessException("登录失败: " + e.getMessage());
         }
     }
 
@@ -93,14 +94,14 @@ public class AuthServiceImpl implements AuthService {
 
         // 验证密码一致性
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            throw new RuntimeException("两次输入的密码不一致");
+            throw new BusinessException("两次输入的密码不一致");
         }
 
         // 检查用户名是否已存在
         LambdaQueryWrapper<SysUser> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(SysUser::getUsername, request.getUsername());
         if (sysUserMapper.selectCount(queryWrapper) > 0) {
-            throw new RuntimeException("用户名已存在");
+            throw new BusinessException("用户名已存在");
         }
 
         // 创建系统用户
@@ -154,5 +155,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public SysUser getUserById(Long userId) {
         return sysUserMapper.selectById(userId);
+    }
+
+    @Override
+    public void updateUserAvatar(String username, String avatarUrl) {
+        SysUser currentUser = sysUserMapper.selectOne(
+                new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, username));
+        if (currentUser != null) {
+            currentUser.setAvatar(avatarUrl);
+            sysUserMapper.updateById(currentUser);
+            log.info("用户 {} 头像已更新: {}", username, avatarUrl);
+        }
     }
 }

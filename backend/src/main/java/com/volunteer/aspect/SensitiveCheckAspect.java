@@ -61,6 +61,7 @@ public class SensitiveCheckAspect {
                 }
             } catch (IllegalAccessException e) {
                 log.error("敏感词校验反射获取字段失败: {}", e.getMessage());
+                throw new RuntimeException("系统安全校验异常，请稍后重试");
             }
         }
     }

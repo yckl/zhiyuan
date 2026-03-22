@@ -219,15 +219,19 @@ public class SettlementController {
             log.warn("积分/工时更新失败: {}", e.getMessage());
         }
 
-        // 7. 发送通知
+        // 7. 发送通知（需要将 volunteerId 转换为 userId）
         try {
-            messageService.sendMessage(
-                    registration.getVolunteerId(),
-                    operatorId,
-                    "工时结算通知",
-                    String.format("您在活动【%s】的服务已完成结算。\n服务时长: %.1f 小时\n获得积分: %d 分\n感谢您的付出！",
-                            activity.getTitle(), hours.doubleValue(), points),
-                    SysMessage.TYPE_NOTICE);
+            Volunteer notifyVolunteer = volunteerMapper.selectById(registration.getVolunteerId());
+            Long receiverUserId = notifyVolunteer != null ? notifyVolunteer.getUserId() : null;
+            if (receiverUserId != null) {
+                messageService.sendMessage(
+                        receiverUserId,
+                        operatorId,
+                        "工时结算通知",
+                        String.format("您在活动【%s】的服务已完成结算。\n服务时长: %.1f 小时\n获得积分: %d 分\n感谢您的付出！",
+                                activity.getTitle(), hours.doubleValue(), points),
+                        SysMessage.TYPE_NOTICE);
+            }
         } catch (Exception e) {
             log.warn("发送结算通知失败: {}", e.getMessage());
         }

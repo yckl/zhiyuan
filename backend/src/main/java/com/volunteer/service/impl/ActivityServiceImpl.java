@@ -226,6 +226,7 @@ public class ActivityServiceImpl implements ActivityService {
      * 获取活动详情（包含组织者完整信息）
      * 多表联查：Activity + Organizer + SysUser
      */
+    @Override
     public ActivityDetailVO getActivityDetailVO(Long id) {
         Activity activity = activityMapper.selectById(id);
         if (activity == null) {
@@ -234,6 +235,17 @@ public class ActivityServiceImpl implements ActivityService {
 
         ActivityDetailVO vo = new ActivityDetailVO();
         BeanUtils.copyProperties(activity, vo);
+
+        // 实时查询真实报名人数
+        try {
+            LambdaQueryWrapper<com.volunteer.entity.ActivityRegistration> regQuery = new LambdaQueryWrapper<>();
+            regQuery.eq(com.volunteer.entity.ActivityRegistration::getActivityId, activity.getId())
+                    .in(com.volunteer.entity.ActivityRegistration::getStatus, 0, 1, 2, 3);
+            Long realCount = activityRegistrationMapper.selectCount(regQuery);
+            vo.setCurrentParticipants(realCount != null ? realCount.intValue() : 0);
+        } catch (Exception e) {
+            log.debug("查询实际报名人数失败: activityId={}", activity.getId());
+        }
 
         // 设置状态名称
         if (activity.getStatus().equals(2) && activity.getRegisterStart() != null
@@ -327,6 +339,15 @@ public class ActivityServiceImpl implements ActivityService {
 
     @Override
     public Page<ActivityDTO> pageActivities(ActivityPageQuery query) {
+        // 查询前先同步活动状态（已发布→进行中→已结束），确保实时准确
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            activityMapper.batchUpdateToOngoing(now);
+            activityMapper.batchUpdateToEnded(now);
+        } catch (Exception e) {
+            log.warn("查询前同步活动状态失败: {}", e.getMessage());
+        }
+
         Page<Activity> page = new Page<>(query.getPage(), query.getSize());
 
         LambdaQueryWrapper<Activity> queryWrapper = new LambdaQueryWrapper<>();
@@ -345,6 +366,13 @@ public class ActivityServiceImpl implements ActivityService {
         }
         if (query.getStatus() != null) {
             queryWrapper.eq(Activity::getStatus, query.getStatus());
+            // 当筛选"报名中"(status=2)时，排除报名尚未开始的活动
+            if (query.getStatus() == 2) {
+                queryWrapper.and(w -> w
+                    .isNull(Activity::getRegisterStart)
+                    .or()
+                    .le(Activity::getRegisterStart, LocalDateTime.now()));
+            }
         }
         if (query.getAuditStatus() != null) {
             queryWrapper.eq(Activity::getAuditStatus, query.getAuditStatus());
@@ -532,11 +560,7 @@ public class ActivityServiceImpl implements ActivityService {
 
     @Override
     public void incrementViewCount(Long id) {
-        Activity activity = activityMapper.selectById(id);
-        if (activity != null) {
-            activity.setViewCount(activity.getViewCount() + 1);
-            activityMapper.updateById(activity);
-        }
+        activityMapper.atomicIncrementViewCount(id);
     }
 
     @Override
@@ -613,6 +637,17 @@ public class ActivityServiceImpl implements ActivityService {
     private ActivityDTO convertToDTO(Activity activity) {
         ActivityDTO dto = new ActivityDTO();
         BeanUtils.copyProperties(activity, dto);
+
+        // 实时查询真实报名人数（排除已取消/缺席/拒绝的）
+        try {
+            LambdaQueryWrapper<com.volunteer.entity.ActivityRegistration> regQuery = new LambdaQueryWrapper<>();
+            regQuery.eq(com.volunteer.entity.ActivityRegistration::getActivityId, activity.getId())
+                    .in(com.volunteer.entity.ActivityRegistration::getStatus, 0, 1, 2, 3);
+            Long realCount = activityRegistrationMapper.selectCount(regQuery);
+            dto.setCurrentParticipants(realCount != null ? realCount.intValue() : 0);
+        } catch (Exception e) {
+            log.debug("查询实际报名人数失败: activityId={}", activity.getId());
+        }
 
         if (activity.getStatus().equals(2) && activity.getRegisterStart() != null
                 && LocalDateTime.now().isBefore(activity.getRegisterStart())) {

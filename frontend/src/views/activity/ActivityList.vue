@@ -485,13 +485,18 @@ const suggestionList = ref<any[]>([])
 const showClearHistory = computed(() => !queryParams.title && suggestionList.value.some(item => item.isHistory))
 
 const queryParams = reactive({
-  page: 1,
+  page: Number(sessionStorage.getItem('activityListPage')) || 1,
   size: 12,
   title: '',
   categoryId: null as number | null,
   organizerId: null as number | null,
   status: null as number | null,
   orderBy: 'newest' as string
+})
+
+// 监听页码变化，保存到 sessionStorage
+watch(() => queryParams.page, (newPage) => {
+  sessionStorage.setItem('activityListPage', String(newPage))
 })
 
 const noMore = computed(() => activities.value.length >= total.value && total.value > 0)
@@ -777,6 +782,11 @@ const handleScroll = () => {
 onMounted(() => {
   fetchCategories()
   fetchOrganizers()
+  // 从 sessionStorage 恢复页码
+  const savedPage = Number(sessionStorage.getItem('activityListPage'))
+  if (savedPage > 0) {
+    queryParams.page = savedPage
+  }
   if (route.query.filter === 'recommended') {
     handleRecommend()
   } else {
