@@ -1,4 +1,3 @@
-
 # 🌟 校园志愿服务管理系统 (Campus Volunteer System)
 
 ![Vue.js](https://img.shields.io/badge/Vue%203-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)
@@ -109,29 +108,20 @@
 │   ├── security/                 # JWT 令牌校验与安全上下文
 │   ├── service/                  # 业务逻辑实现层
 │   └── util/                     # 工具类 (FileUploadValidator, SensitiveWordFilter 等)
-````
-
------
-
-## 🚀 快速启动 (Quick Start)
-
-### 1\. 环境准备
-
-  - Node.js \>= 18.x
-  - JDK \>= 17
-  - MySQL \>= 8.0
-  - Redis \>= 6.0
-
-### 2\. 后端服务启动
-
-1.  创建 MySQL 数据库 `volunteer_db`。
-2.  运行后端 `src/main/resources/` 目录下的 SQL 初始化脚本导入表结构。
-3.  修改 `application.yml` 中的 MySQL 和 Redis 连接配置（账号、密码）。
-4.  运行 `VolunteerApplication.java` 启动服务（默认运行在 `8080` 端口）。
-
-### 3\. 前端项目运行
-
-```bash
+🚀 快速启动 (Quick Start)
+1. 环境准备
+Node.js >= 18.x
+JDK >= 17
+MySQL >= 8.0
+Redis >= 6.0
+2. 后端服务启动
+创建 MySQL 数据库 volunteer_db。
+运行后端 src/main/resources/ 目录下的 SQL 初始化脚本导入表结构。
+修改 application.yml 中的 MySQL 和 Redis 连接配置（账号、密码）。
+运行 VolunteerApplication.java 启动服务（默认运行在 8080 端口）。
+3. 前端项目运行
+bash
+运行
 # 进入前端目录
 cd src
 
@@ -140,21 +130,7 @@ npm install
 
 # 启动本地开发服务器
 npm run dev
-```
-
-启动后，访问 `http://localhost:5173` 即可体验系统。
-
-> **💡 提示**：强烈建议在浏览器按 `F12` 切换至移动端设备模式（Mobile View），然后刷新页面，体验专为移动端打造的沉浸式 App-Shell 布局与交互！
-
------
-
-## 📄 许可证 (License)
-
-本项目基于 [MIT License](https://www.google.com/search?q=LICENSE) 开源。欢迎点亮 ⭐️ Star，提交 PR 或 Issue 交流探讨！
-
------
-
-**设计理念**：*“用科技传递温度，让志愿服务管理既严谨又优雅。”*
-
-```
-```
+启动后，访问 http://localhost:5173 即可体验系统。
+💡 提示：强烈建议在浏览器按 F12 切换至移动端设备模式（Mobile View），然后刷新页面，体验专为移动端打造的沉浸式 App-Shell 布局与交互！
+📄 许可证 (License)
+本项目基于 MIT License 开源。欢迎点亮 ⭐️ Star，提交 PR 或 Issue 交流探讨！
