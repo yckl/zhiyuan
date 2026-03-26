@@ -138,27 +138,38 @@ const onScanSuccess = async (decodedText: string) => {
   const token = localStorage.getItem('token')
   if (!token) {
     ElMessage.warning('请先登录后再完成签到')
-    router.push({ path: '/login', query: { redirect: '/scan/index' } })
+    router.push({ path: '/login', query: { redirect: '/scan' } })
     return
   }
 
-  // 1. 尝试从文本中提取纯数字 (兼容 123、 http://.../123、 xxxx:123)
-  const match = decodedText.match(/\d+/)
-  if (!match) {
-    ElMessage.error('二维码内容无效，未识别到活动ID')
+  // 1. 解析二维码内容，支持两种格式：
+  //    - 新格式: "checkin:BASE64_TOKEN:ACTIVITY_ID"
+  //    - 旧格式: 纯数字活动ID 或包含数字的URL
+  let checkinToken: string | null = null
+  let activityId: number | null = null
+
+  if (decodedText.startsWith('checkin:')) {
+    // 新格式：checkin:TOKEN:ACTIVITY_ID
+    const parts = decodedText.split(':')
+    if (parts.length >= 3) {
+      checkinToken = parts[1]
+      activityId = Number(parts[2])
+    }
+  } else {
+    // 旧格式兼容：尝试提取纯数字
+    const match = decodedText.match(/\d+/)
+    if (match) {
+      activityId = Number(match[0])
+    }
+  }
+
+  if (activityId == null || isNaN(activityId) || activityId <= 0) {
+    ElMessage.error('二维码内容无效，未识别到有效签到信息')
     isProcessing.value = false
     return
   }
 
-  // 2. 转换为数字类型 (对应后端 Long)
-  const targetId = Number(match[0])
-  if (isNaN(targetId) || targetId <= 0) {
-    ElMessage.error('二维码解析出的 ID 无效')
-    isProcessing.value = false
-    return
-  }
-
-  // 3. 核心：暂停扫描，防止连续触发
+  // 2. 暂停扫描，防止连续触发
   if (html5QrCode && html5QrCode.isScanning) {
     try {
       await html5QrCode.pause()
@@ -168,8 +179,15 @@ const onScanSuccess = async (decodedText: string) => {
   }
 
   try {
-    // 4. 调用后端签到接口 (确保 Key ?activityId)
-    const res = await request.post('/activity/checkin', { activityId: targetId })
+    let res: any
+
+    if (checkinToken) {
+      // 新格式：使用Token验证签到（三重复核：活动锁、身份锁、时效锁）
+      res = await request.post('/activity/checkin/verify', { token: checkinToken })
+    } else {
+      // 旧格式兼容：直接用活动ID签到
+      res = await request.post('/activity/checkin', { activityId })
+    }
 
     if (res.code === 200) {
       playSuccessSound()

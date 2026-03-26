@@ -495,7 +495,7 @@ const appStore = useAppStore()
 const mobileTabItems = [
   { path: '/home', label: '工作台', icon: Aim },
   { path: '/activity', label: '活动', icon: Calendar },
-  { path: '/scan/index', label: '签到', icon: CircleCheck },
+  { path: '/scan', label: '签到', icon: CircleCheck },
   { path: '/notice/my', label: '通知', icon: Bell },
   { path: '/profile', label: '我的', icon: UserFilled }
 ]
@@ -616,7 +616,7 @@ watch([() => route.path, isCollapsed], () => {
 
 // 路由状态辅?
 const canGoBack = computed(() => {
-  const homePaths = ['/home', '/', '/activity', '/profile', '/scan/index']
+  const homePaths = ['/home', '/', '/activity', '/profile', '/scan']
   return !homePaths.includes(route.path)
 })
 

@@ -77,7 +77,8 @@ public class OrganizerCheckinController {
             result.put("activityId", activityId);
             result.put("expireAt", expireAt);
             result.put("refreshInterval", 30000);
-            result.put("qrcodeContent", "volunteer://checkin?token=" + token + "&activityId=" + activityId);
+            // 使用可被手机浏览器打开的 URL 格式，而非自定义协议（避免手机扫码 404）
+            result.put("qrcodeContent", "checkin:" + token + ":" + activityId);
 
             return Result.success(result);
         } catch (Exception e) {

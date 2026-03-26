@@ -29,7 +29,7 @@
       </div>
       
       <!-- 沉浸式扫码 -->
-      <div class="scan-btn-premium" @click="$emit('nav', '/scan/index')">
+      <div class="scan-btn-premium" @click="$emit('nav', '/scan')">
         <div class="scan-icon-glass">
           <el-icon :size="22"><FullScreen /></el-icon>
         </div>

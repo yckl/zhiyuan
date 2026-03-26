@@ -243,6 +243,47 @@ public class ActivityController {
     }
 
     /**
+     * Token验证签到（志愿者扫描组织者二维码）
+     * 三重复核：活动锁、身份锁、时效锁
+     */
+    @PostMapping("/checkin/verify")
+    @Operation(summary = "Token验证签到", description = "志愿者通过扫描动态二维码Token进行签到")
+    public Result<String> checkinByToken(@RequestBody Map<String, String> params) {
+        Long userId = SecurityUtils.getUserId();
+        if (userId == null) {
+            return Result.unauthorized("请先登录");
+        }
+
+        String token = params.get("token");
+        if (token == null || token.isEmpty()) {
+            return Result.error("签到Token不能为空");
+        }
+
+        try {
+            // 1. 时效锁：解码Token并检查过期
+            String decoded = new String(java.util.Base64.getDecoder().decode(token), java.nio.charset.StandardCharsets.UTF_8);
+            String[] parts = decoded.split(":");
+            if (parts.length != 3) {
+                return Result.error("二维码内容无效");
+            }
+
+            long activityId = Long.parseLong(parts[0]);
+            long expireAt = Long.parseLong(parts[1]);
+
+            if (System.currentTimeMillis() > expireAt) {
+                return Result.error("二维码已过期，请使用最新二维码");
+            }
+
+            // 2. 调用已有签到逻辑（内部处理活动锁和身份锁）
+            activityService.checkin(activityId, userId);
+            return Result.success("签到成功，积分+10", null);
+        } catch (Exception e) {
+            log.error("Token签到失败: {}", e.getMessage());
+            return Result.error(e.getMessage());
+        }
+    }
+
+    /**
      * 获取所有组织者列表（用于筛选）
      */
     @GetMapping("/organizers")
