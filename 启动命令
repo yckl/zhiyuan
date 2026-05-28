@@ -1,0 +1,9 @@
+sudo service mysql start
+sudo service redis-server start
+
+cd '/home/yck/桌面/Campus-Volunteer-System-master./Campus-Volunteer-System-master/backend'
+mvn spring-boot:run
+
+cd '/home/yck/桌面/Campus-Volunteer-System-master./Campus-Volunteer-System-master/frontend'
+npm run dev
+
